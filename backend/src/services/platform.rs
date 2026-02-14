@@ -8,7 +8,7 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-use crate::models::SystemInfo;
+use crate::models::{RequirementCheck, SystemInfo, SystemRequirements};
 use crate::services::command::SafeCommand;
 
 /// Platform detection and path utilities
@@ -137,6 +137,119 @@ impl Platform {
             arch: Self::arch().to_string(),
             node_version: SafeCommand::check_node_version().ok().flatten(),
             openclaw_installed: false, // TODO: Implement OpenClaw binary detection
+        }
+    }
+
+    /// Returns detailed system requirements check results
+    ///
+    /// Checks OS, Node.js version, npm, and disk space.
+    pub fn system_requirements() -> SystemRequirements {
+        let mut checks = Vec::new();
+
+        // OS check: always passes, reports actual OS
+        checks.push(RequirementCheck {
+            name: "Operating System".to_string(),
+            required: "macOS, Linux, or Windows".to_string(),
+            actual: format!("{} ({})", Self::os(), Self::arch()),
+            passed: true,
+            help_text: None,
+        });
+
+        // Node.js check: passes if version >= 22.0.0
+        let node_version_opt = SafeCommand::check_node_version().ok().flatten();
+        let node_installed = node_version_opt.is_some();
+        let node_passed = if let Some(ref version) = node_version_opt {
+            // Parse version string (e.g., "v22.1.0" -> 22.1.0)
+            let version_clean = version.trim_start_matches('v');
+            if let Some((major_str, _)) = version_clean.split_once('.') {
+                major_str.parse::<u32>().ok().map_or(false, |major| major >= 22)
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        checks.push(RequirementCheck {
+            name: "Node.js".to_string(),
+            required: "v22.0.0 or higher".to_string(),
+            actual: node_version_opt.clone().unwrap_or_else(|| "Not installed".to_string()),
+            passed: node_passed,
+            help_text: if !node_passed {
+                Some("Install Node.js from https://nodejs.org/".to_string())
+            } else {
+                None
+            },
+        });
+
+        // npm check: passes if present
+        let npm_version_opt = SafeCommand::check_npm_version().ok().flatten();
+        let npm_passed = npm_version_opt.is_some();
+
+        checks.push(RequirementCheck {
+            name: "npm".to_string(),
+            required: "Any version".to_string(),
+            actual: npm_version_opt.clone().unwrap_or_else(|| "Not installed".to_string()),
+            passed: npm_passed,
+            help_text: if !npm_passed {
+                Some("npm is bundled with Node.js".to_string())
+            } else {
+                None
+            },
+        });
+
+        // Disk space check: passes if >= 500MB available
+        let disk_passed = if let Ok(home) = Self::home_dir() {
+            let mut disks = sysinfo::Disks::new_with_refreshed_list();
+            if let Some(disk) = disks.iter_mut().find(|d| home.starts_with(d.mount_point())) {
+                let available_bytes = disk.available_space();
+                let required_bytes = 500_000_000u64; // 500MB
+                let passed = available_bytes >= required_bytes;
+
+                let available_gb = available_bytes as f64 / 1_000_000_000.0;
+                checks.push(RequirementCheck {
+                    name: "Disk Space".to_string(),
+                    required: "500 MB available".to_string(),
+                    actual: format!("{:.1} GB available", available_gb),
+                    passed,
+                    help_text: if !passed {
+                        Some("Free up disk space before continuing".to_string())
+                    } else {
+                        None
+                    },
+                });
+
+                passed
+            } else {
+                // Couldn't find disk, assume it's okay
+                checks.push(RequirementCheck {
+                    name: "Disk Space".to_string(),
+                    required: "500 MB available".to_string(),
+                    actual: "Unable to check".to_string(),
+                    passed: true,
+                    help_text: None,
+                });
+                true
+            }
+        } else {
+            // Couldn't determine home directory, assume it's okay
+            checks.push(RequirementCheck {
+                name: "Disk Space".to_string(),
+                required: "500 MB available".to_string(),
+                actual: "Unable to check".to_string(),
+                passed: true,
+                help_text: None,
+            });
+            true
+        };
+
+        let all_passed = checks.iter().all(|check| check.passed);
+
+        SystemRequirements {
+            checks,
+            all_passed,
+            node_installed,
+            node_version: node_version_opt,
         }
     }
 }

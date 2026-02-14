@@ -16,6 +16,8 @@ async fn main() {
     let app = Router::new()
         .route("/api/health", get(routes::api::health))
         .route("/api/system/info", get(routes::api::system_info))
+        .route("/api/system/requirements", get(routes::api::system_requirements))
+        .route("/api/system/detect-openclaw", get(routes::api::detect_openclaw))
         .route("/ws", get(routes::ws::ws_handler))
         .fallback_service(ServeDir::new("static"));
 
