@@ -5,6 +5,7 @@ import { SystemCheck } from './components/steps/SystemCheck';
 import { DetectOpenClaw } from './components/steps/DetectOpenClaw';
 import { ProviderConfig } from './components/steps/ProviderConfig';
 import { GatewayConfig } from './components/steps/GatewayConfig';
+import { ChannelConfiguration } from './components/steps/ChannelConfiguration';
 import { ReviewConfig } from './components/steps/ReviewConfig';
 import { InstallProgress } from './components/steps/InstallProgress';
 import { Complete } from './components/steps/Complete';
@@ -16,6 +17,7 @@ const WIZARD_STEPS: WizardStepType[] = [
   { id: 'detect', label: 'Detection', description: 'Find existing installation' },
   { id: 'provider', label: 'AI Provider', description: 'Configure AI model' },
   { id: 'gateway', label: 'Gateway', description: 'Configure gateway settings' },
+  { id: 'channels', label: 'Channels', description: 'Configure messaging channels' },
   { id: 'review', label: 'Review', description: 'Review configuration' },
   { id: 'install', label: 'Install', description: 'Install OpenClaw' },
   { id: 'complete', label: 'Complete', description: 'Setup complete' },
@@ -34,10 +36,12 @@ function CurrentStepRenderer() {
     case 3:
       return <GatewayConfig />;
     case 4:
-      return <ReviewConfig />;
+      return <ChannelConfiguration />;
     case 5:
-      return <InstallProgress />;
+      return <ReviewConfig />;
     case 6:
+      return <InstallProgress />;
+    case 7:
       return <Complete />;
     default:
       return (

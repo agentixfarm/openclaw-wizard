@@ -40,6 +40,7 @@ export function TelegramSetup({ onComplete, onCancel, existingConfig }: Telegram
       const response = await api.validateChannelToken({
         platform: 'telegram',
         token: data.botToken,
+        app_token: null,
       });
 
       if (response.valid) {

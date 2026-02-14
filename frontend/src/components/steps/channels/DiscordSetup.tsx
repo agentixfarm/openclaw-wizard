@@ -40,6 +40,7 @@ export function DiscordSetup({ onComplete, onCancel, existingConfig }: DiscordSe
       const response = await api.validateChannelToken({
         platform: 'discord',
         token: data.botToken,
+        app_token: null,
       });
 
       if (response.valid) {

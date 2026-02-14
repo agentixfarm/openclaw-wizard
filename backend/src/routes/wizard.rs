@@ -135,7 +135,7 @@ pub async fn save_config(Json(config): Json<WizardConfig>) -> Json<ApiResponse<E
     };
 
     // Build OpenClaw-compatible JSON config
-    let openclaw_config = serde_json::json!({
+    let mut openclaw_config = serde_json::json!({
         "ai": {
             "provider": config.provider,
             "auth": openclaw_auth_type,
@@ -150,6 +150,28 @@ pub async fn save_config(Json(config): Json<WizardConfig>) -> Json<ApiResponse<E
             }
         }
     });
+
+    // Add channels if present
+    if let Some(channels) = &config.channels {
+        let mut channels_obj = serde_json::Map::new();
+        for channel in channels {
+            let mut channel_config = serde_json::Map::new();
+            channel_config.insert("enabled".to_string(), serde_json::json!(channel.enabled));
+            channel_config.insert("dmPolicy".to_string(), serde_json::json!(channel.dm_policy));
+            channel_config.insert("allowFrom".to_string(), serde_json::json!(channel.allowed_users));
+
+            if let Some(ref token) = channel.bot_token {
+                channel_config.insert("botToken".to_string(), serde_json::json!(token));
+            }
+            if let Some(ref token) = channel.app_token {
+                channel_config.insert("appToken".to_string(), serde_json::json!(token));
+            }
+
+            channels_obj.insert(channel.platform.clone(), serde_json::Value::Object(channel_config));
+        }
+        openclaw_config.as_object_mut().unwrap()
+            .insert("channels".to_string(), serde_json::Value::Object(channels_obj));
+    }
 
     // Get config path
     match Platform::config_dir() {

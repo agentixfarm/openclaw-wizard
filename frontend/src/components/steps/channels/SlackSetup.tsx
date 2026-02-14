@@ -41,7 +41,7 @@ export function SlackSetup({ onComplete, onCancel, existingConfig }: SlackSetupP
       const response = await api.validateChannelToken({
         platform: 'slack',
         token: data.botToken,
-        app_token: data.appToken || undefined,
+        app_token: data.appToken || null,
       });
 
       if (response.valid) {

@@ -10,7 +10,7 @@ export function ReviewConfig() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { providerConfig, gatewayConfig } = formData;
+  const { providerConfig, gatewayConfig, channelsConfig } = formData;
 
   // Helper to mask API key/credential
   const maskSecret = (secret: string) => {
@@ -30,6 +30,22 @@ export function ReviewConfig() {
     setError(null);
 
     try {
+      // Map configured channels to WizardConfig format
+      const channels = channelsConfig?.channels?.map((channel) => {
+        const config = channel.config as any;
+        return {
+          platform: channel.platform,
+          enabled: true,
+          bot_token: config?.botToken || null,
+          app_token: config?.appToken || null,
+          dm_policy: 'allowlist',
+          allowed_users: [
+            config?.userId,
+            config?.phoneNumber,
+          ].filter(Boolean) as string[],
+        };
+      }) || null;
+
       // Build WizardConfig from formData
       const config: WizardConfig = {
         provider: providerConfig.provider,
@@ -39,7 +55,7 @@ export function ReviewConfig() {
         gateway_bind: gatewayConfig.bind === 'loopback' ? '127.0.0.1' : '0.0.0.0',
         auth_mode: gatewayConfig.authMode,
         auth_credential: gatewayConfig.authCredential || null,
-        channels: null,
+        channels: channels,
       };
 
       await api.saveConfig(config);
@@ -173,6 +189,64 @@ export function ReviewConfig() {
               </dd>
             </div>
           </dl>
+        </div>
+
+        {/* Channels Section */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <svg
+              className="h-5 w-5 text-blue-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+              />
+            </svg>
+            Configured Channels
+          </h3>
+          {channelsConfig?.channels && channelsConfig.channels.length > 0 ? (
+            <dl className="space-y-3">
+              {channelsConfig.channels.map((channel) => (
+                <div key={channel.platform}>
+                  <dt className="text-sm font-medium text-gray-500 capitalize">
+                    {channel.platform}
+                  </dt>
+                  <dd className="mt-1 flex items-center gap-2">
+                    <svg
+                      className="h-4 w-4 text-green-600"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                    <span className="text-sm text-gray-900">
+                      Configured
+                      {channel.botName && ` - ${channel.botName}`}
+                      {channel.botUsername && ` (@${channel.botUsername})`}
+                    </span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          ) : (
+            <div className="text-sm text-gray-600">
+              <p>No channels configured</p>
+              <p className="mt-1 text-xs text-gray-500">
+                You can add channels later from the dashboard
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Installation Path Info */}
