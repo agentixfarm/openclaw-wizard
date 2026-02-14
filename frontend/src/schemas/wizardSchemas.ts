@@ -65,6 +65,29 @@ export const securityAckSchema = z.object({
 });
 
 /**
+ * Advanced Configuration step schema (Phase 5)
+ */
+export const advancedConfigSchema = z.object({
+  bindMode: z.enum(['localhost', 'all']),
+  authMode: z.enum(['none', 'basic']),
+  authUsername: z.string().optional(),
+  authPassword: z.string().optional(),
+  tailscaleEnabled: z.boolean(),
+  tailscaleAuthKey: z.string().optional(),
+}).refine(
+  (data) => {
+    if (data.authMode === 'basic') {
+      return data.authUsername && data.authPassword && data.authUsername.length > 0 && data.authPassword.length > 0;
+    }
+    return true;
+  },
+  {
+    message: "Username and password are required for basic authentication",
+    path: ['authUsername'], // Show error on username field
+  }
+);
+
+/**
  * Inferred TypeScript type for wizard form data
  */
 export type WizardFormData = z.infer<typeof wizardSchema>;
@@ -76,3 +99,4 @@ export type SystemCheckData = z.infer<typeof systemCheckSchema>;
 export type ProviderConfigData = z.input<typeof providerConfigSchema>;
 export type GatewayConfigData = z.input<typeof gatewayConfigSchema>;
 export type SecurityAckData = z.infer<typeof securityAckSchema>;
+export type AdvancedConfigData = z.infer<typeof advancedConfigSchema>;
