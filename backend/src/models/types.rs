@@ -165,3 +165,45 @@ pub struct InstallProgress {
     pub error: Option<String>,   // Error details if failed
     pub progress_pct: Option<u8>,// Optional percentage (0-100)
 }
+
+// ===== Dashboard Types =====
+
+/// DaemonStatus - returned by daemon status endpoint
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct DaemonStatus {
+    pub running: bool,
+    pub pid: Option<u32>,
+    pub uptime_seconds: Option<u64>,
+    pub memory_mb: Option<u64>,
+    pub cpu_percent: Option<f32>,
+}
+
+/// ChannelHealth - individual channel status
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct ChannelHealth {
+    pub platform: String,
+    pub status: String,        // "connected" | "disconnected" | "error"
+    pub last_active: Option<String>,
+    pub error_message: Option<String>,
+}
+
+/// HealthSnapshot - returned by health endpoint
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct HealthSnapshot {
+    pub gateway_reachable: bool,
+    pub gateway_mode: String,
+    pub channels: Vec<ChannelHealth>,
+    pub session_count: u32,
+    pub probe_duration_ms: u32,
+}
+
+/// DaemonActionResponse - returned by start/stop/restart
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct DaemonActionResponse {
+    pub success: bool,
+    pub message: String,
+}
