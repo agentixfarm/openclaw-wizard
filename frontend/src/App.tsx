@@ -1,171 +1,139 @@
-import { useState, useEffect, useRef } from 'react';
-import { api } from './api/client';
-import { WebSocketClient } from './api/websocket';
-import type { SystemInfo } from './types/SystemInfo';
+import { WizardProvider, useWizard } from './components/wizard/WizardProvider';
+import { Stepper } from './components/wizard/Stepper';
+import { WizardStep } from './components/wizard/WizardStep';
+import { WizardNavigation } from './components/wizard/WizardNavigation';
+import { SystemCheck } from './components/steps/SystemCheck';
+import { DetectOpenClaw } from './components/steps/DetectOpenClaw';
+import type { WizardStep as WizardStepType } from './components/wizard/WizardProvider';
 import './App.css';
 
-function App() {
-  const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [wsStatus, setWsStatus] = useState<string>('disconnected');
-  const [wsMessages, setWsMessages] = useState<string[]>([]);
-  const [messageInput, setMessageInput] = useState('');
-  const wsClient = useRef<WebSocketClient | null>(null);
+const WIZARD_STEPS: WizardStepType[] = [
+  { id: 'system-check', label: 'System Check', description: 'Verify system requirements' },
+  { id: 'detect', label: 'Detection', description: 'Find existing installation' },
+  { id: 'provider', label: 'AI Provider', description: 'Configure AI model' },
+  { id: 'gateway', label: 'Gateway', description: 'Configure gateway settings' },
+  { id: 'review', label: 'Review', description: 'Review configuration' },
+  { id: 'install', label: 'Install', description: 'Install OpenClaw' },
+  { id: 'complete', label: 'Complete', description: 'Setup complete' },
+];
 
-  useEffect(() => {
-    // Fetch system info on mount
-    api.getSystemInfo()
-      .then(setSystemInfo)
-      .catch((err) => setError(err.message));
+function CurrentStepRenderer() {
+  const { currentStep, nextStep } = useWizard();
 
-    // Initialize WebSocket client
-    wsClient.current = new WebSocketClient();
-
-    const unsubscribeStatus = wsClient.current.onStatusChange((status) => {
-      setWsStatus(status);
-    });
-
-    const unsubscribeMessages = wsClient.current.onMessage((data) => {
-      setWsMessages((prev) => [...prev, data]);
-    });
-
-    wsClient.current.connect();
-
-    // Cleanup on unmount
-    return () => {
-      unsubscribeStatus();
-      unsubscribeMessages();
-      wsClient.current?.disconnect();
-    };
-  }, []);
-
-  const sendMessage = () => {
-    if (messageInput.trim() && wsClient.current) {
-      wsClient.current.send(messageInput);
-      setMessageInput('');
-    }
-  };
-
-  if (error) {
-    return (
-      <div style={{ padding: '20px', color: 'red' }}>
-        <h1>Error</h1>
-        <p>{error}</p>
-      </div>
-    );
-  }
-
-  if (!systemInfo) {
-    return (
-      <div style={{ padding: '20px' }}>
-        <p>Connecting to backend...</p>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ padding: '20px', fontFamily: 'system-ui, sans-serif' }}>
-      <h1>OpenClaw Wizard</h1>
-
-      <section style={{ marginBottom: '30px' }}>
-        <h2>System Information</h2>
-        <table style={{ borderCollapse: 'collapse', width: '100%', maxWidth: '500px' }}>
-          <tbody>
-            <tr>
-              <td style={{ padding: '8px', borderBottom: '1px solid #ccc' }}><strong>OS:</strong></td>
-              <td style={{ padding: '8px', borderBottom: '1px solid #ccc' }}>{systemInfo.os}</td>
-            </tr>
-            <tr>
-              <td style={{ padding: '8px', borderBottom: '1px solid #ccc' }}><strong>Architecture:</strong></td>
-              <td style={{ padding: '8px', borderBottom: '1px solid #ccc' }}>{systemInfo.arch}</td>
-            </tr>
-            <tr>
-              <td style={{ padding: '8px', borderBottom: '1px solid #ccc' }}><strong>Node.js:</strong></td>
-              <td style={{ padding: '8px', borderBottom: '1px solid #ccc' }}>
-                {systemInfo.node_version || 'Not installed'}
-              </td>
-            </tr>
-            <tr>
-              <td style={{ padding: '8px', borderBottom: '1px solid #ccc' }}><strong>OpenClaw:</strong></td>
-              <td style={{ padding: '8px', borderBottom: '1px solid #ccc' }}>
-                {systemInfo.openclaw_installed ? 'Installed' : 'Not installed'}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-
-      <section>
-        <h2>WebSocket</h2>
-        <p>
-          <strong>Status:</strong>{' '}
-          <span
-            style={{
-              color:
-                wsStatus === 'connected'
-                  ? 'green'
-                  : wsStatus === 'connecting' || wsStatus === 'reconnecting'
-                  ? 'orange'
-                  : 'red',
-            }}
-          >
-            {wsStatus}
-          </span>
-        </p>
-
-        <div style={{ marginTop: '10px' }}>
-          <input
-            type="text"
-            value={messageInput}
-            onChange={(e) => setMessageInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-            placeholder="Type a message..."
-            style={{
-              padding: '8px',
-              width: '300px',
-              marginRight: '10px',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-            }}
-            disabled={wsStatus !== 'connected'}
-          />
-          <button
-            onClick={sendMessage}
-            disabled={wsStatus !== 'connected'}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: wsStatus === 'connected' ? '#007bff' : '#ccc',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: wsStatus === 'connected' ? 'pointer' : 'not-allowed',
-            }}
-          >
-            Send
-          </button>
-        </div>
-
-        {wsMessages.length > 0 && (
-          <div style={{ marginTop: '20px' }}>
-            <h3>Messages:</h3>
-            <ul style={{ listStyle: 'none', padding: 0 }}>
-              {wsMessages.map((msg, idx) => (
-                <li
-                  key={idx}
-                  style={{
-                    padding: '8px',
-                    marginBottom: '5px',
-                    backgroundColor: '#f5f5f5',
-                    borderRadius: '4px',
-                  }}
-                >
-                  {msg}
-                </li>
-              ))}
-            </ul>
+  switch (currentStep) {
+    case 0:
+      return <SystemCheck />;
+    case 1:
+      return <DetectOpenClaw />;
+    case 2:
+      return (
+        <WizardStep title="AI Provider Configuration" description="Configure your AI provider">
+          <div className="rounded-md bg-gray-50 p-6 border border-gray-200">
+            <p className="text-sm text-gray-600">
+              This step will be available soon. You'll configure your Anthropic or OpenAI API key here.
+            </p>
           </div>
-        )}
-      </section>
+          <WizardNavigation onNext={nextStep} />
+        </WizardStep>
+      );
+    case 3:
+      return (
+        <WizardStep title="Gateway Configuration" description="Configure gateway settings">
+          <div className="rounded-md bg-gray-50 p-6 border border-gray-200">
+            <p className="text-sm text-gray-600">
+              This step will be available soon. You'll configure the gateway port, bind address, and authentication here.
+            </p>
+          </div>
+          <WizardNavigation onNext={nextStep} />
+        </WizardStep>
+      );
+    case 4:
+      return (
+        <WizardStep title="Review Configuration" description="Review your settings before installation">
+          <div className="rounded-md bg-gray-50 p-6 border border-gray-200">
+            <p className="text-sm text-gray-600">
+              This step will be available soon. You'll review all your configuration choices here.
+            </p>
+          </div>
+          <WizardNavigation onNext={nextStep} />
+        </WizardStep>
+      );
+    case 5:
+      return (
+        <WizardStep title="Install OpenClaw" description="Installing and configuring OpenClaw">
+          <div className="rounded-md bg-gray-50 p-6 border border-gray-200">
+            <p className="text-sm text-gray-600">
+              This step will be available soon. The wizard will install OpenClaw and apply your configuration.
+            </p>
+          </div>
+          <WizardNavigation onNext={nextStep} />
+        </WizardStep>
+      );
+    case 6:
+      return (
+        <WizardStep title="Setup Complete" description="Your OpenClaw installation is ready">
+          <div className="rounded-md bg-green-50 p-6 border border-green-200">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg
+                  className="h-6 w-6 text-green-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-green-800">
+                  Installation Complete!
+                </h3>
+                <div className="mt-2 text-sm text-green-700">
+                  <p>
+                    OpenClaw has been successfully installed and configured. This completion step will be fully implemented soon.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </WizardStep>
+      );
+    default:
+      return (
+        <WizardStep title="Unknown Step">
+          <p className="text-sm text-gray-600">Invalid step.</p>
+        </WizardStep>
+      );
+  }
+}
+
+function App() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <h1 className="text-2xl font-bold text-gray-900">OpenClaw Setup Wizard</h1>
+        </div>
+      </header>
+
+      {/* Main content */}
+      <main className="max-w-4xl mx-auto px-4 py-8">
+        <WizardProvider steps={WIZARD_STEPS}>
+          {/* Progress stepper */}
+          <Stepper steps={WIZARD_STEPS} />
+
+          {/* Current step content */}
+          <div className="mt-8">
+            <CurrentStepRenderer />
+          </div>
+        </WizardProvider>
+      </main>
     </div>
   );
 }
