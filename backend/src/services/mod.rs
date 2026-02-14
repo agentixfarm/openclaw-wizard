@@ -1,1 +1,2 @@
-// Services module - placeholder for Plan 03
+// Services module - system utilities and command execution
+pub mod command;
