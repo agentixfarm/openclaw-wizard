@@ -3,7 +3,7 @@ mod models;
 mod routes;
 mod services;
 
-use axum::{routing::get, Router};
+use axum::{routing::{get, post}, Router};
 use tower_http::services::ServeDir;
 use tracing::info;
 
@@ -18,6 +18,8 @@ async fn main() {
         .route("/api/system/info", get(routes::api::system_info))
         .route("/api/system/requirements", get(routes::api::system_requirements))
         .route("/api/system/detect-openclaw", get(routes::api::detect_openclaw))
+        .route("/api/wizard/validate-key", post(routes::wizard::validate_api_key))
+        .route("/api/wizard/save-config", post(routes::wizard::save_config))
         .route("/ws", get(routes::ws::ws_handler))
         .fallback_service(ServeDir::new("static"));
 
