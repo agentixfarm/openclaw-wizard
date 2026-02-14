@@ -6,6 +6,8 @@ pub mod detection;
 pub mod health;
 pub mod installer;
 pub mod platform;
+pub mod remote;
 pub mod ssh;
 
+pub use remote::RemoteService;
 pub use ssh::SshService;

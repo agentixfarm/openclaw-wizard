@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 5 of 9 (SSH & Remote Setup)
-Plan: 3 of 4 in current phase
+Plan: 2 of 4 complete in current phase
 Status: Executing
-Last activity: 2026-02-14 — Completed Phase 5 Plan 3 (UI specs + wizard steps)
+Last activity: 2026-02-14 — Completed Phase 5 Plans 01 and 03
 
-Progress: [████░░░░░░] 44% (4/9 phases complete, 3/4 plans in Phase 5)
+Progress: [████░░░░░░] 46% (4/9 phases complete, 2/4 plans in Phase 5)
 
 ## Performance Metrics
 
@@ -40,9 +40,10 @@ Progress: [████░░░░░░] 44% (4/9 phases complete, 3/4 plans i
 
 | Plan | Duration (s) | Tasks | Files |
 |------|-------------|-------|-------|
+| 05-01 | 364 | 3 | 8 |
 | 05-03 | 254 | 3 | 4 |
 
-*Phase 5 velocity: ~4 min per plan (early data)*
+*Phase 5 velocity: ~5 min per plan (309s average)*
 
 ## Accumulated Context
 
@@ -54,6 +55,12 @@ Recent decisions affecting v1.1 work:
 - React 19 + Vite 6 frontend with Rust/Axum backend — portable to Tauri later
 - ts-rs for TypeScript type generation from Rust structs — zero-cost type safety
 - Dark mode with Tailwind CSS v4 selector strategy (no external theme library)
+
+**Phase 5 Plan 1 Decisions:**
+- Used openssh crate (wraps system OpenSSH) instead of russh — simpler API, respects ~/.ssh/config, battle-tested
+- Always use KnownHosts::Strict for host key verification — prevents MITM attacks (security-critical)
+- Store SSH key paths in platform keychain using keyring crate — never in config files
+- Separate CommandOutput type for SSH with ts-rs export vs internal command.rs type
 
 **Phase 5 Plan 3 Decisions:**
 - UI specs document provides standalone implementation guide (543 lines) for frontend engineers
@@ -77,6 +84,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-14T17:12:57Z
-Stopped at: Completed Phase 5 Plan 3 — UI specs + SecurityAck + AdvancedConfig wizard steps
-Resume file: None — ready to continue with Phase 5 Plan 4
+Last session: 2026-02-14T17:14:45Z
+Stopped at: Completed Phase 5 Plan 01 — SSH infrastructure with keyring integration
+Resume file: None — ready to continue with Phase 5 Plan 02 or 04

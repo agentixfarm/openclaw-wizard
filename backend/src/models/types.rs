@@ -243,3 +243,30 @@ pub struct SshConnectionResponse {
     pub message: String,
     pub connection: Option<SshConnection>,
 }
+
+/// Remote setup progress update (streamed via WebSocket)
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct RemoteSetupProgress {
+    /// Current installation stage
+    pub stage: String, // "connection", "node", "openclaw", "config", "daemon", "complete"
+    /// Stage status
+    pub status: String, // "in_progress", "completed", "failed"
+    /// User-visible message
+    pub message: String,
+    /// Error details if status is failed
+    pub error: Option<String>,
+    /// Unix timestamp (seconds)
+    pub timestamp: u64,
+}
+
+/// Remote installation request (sent via WebSocket)
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct RemoteInstallRequest {
+    pub host: String,
+    pub username: String,
+    /// Optional: override WizardConfig from saved config
+    #[ts(type = "Record<string, any> | null")]
+    pub config: Option<serde_json::Value>,
+}

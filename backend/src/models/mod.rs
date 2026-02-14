@@ -5,4 +5,6 @@ pub use types::{
     InstallProgress, InstallRequest,
     OpenClawDetection, RequirementCheck, SystemInfo, SystemInfoResponse, SystemRequirements,
     WizardConfig, WsMessage,
+    RemoteInstallRequest, RemoteSetupProgress, SshConnectionRequest, SshConnectionResponse,
+    SshConnection,
 };
