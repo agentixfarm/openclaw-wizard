@@ -7,6 +7,9 @@ import type { WizardConfig } from '../types/WizardConfig';
 import type { InstallRequest } from '../types/InstallRequest';
 import type { ChannelValidationRequest } from '../types/ChannelValidationRequest';
 import type { ChannelValidationResponse } from '../types/ChannelValidationResponse';
+import type { DaemonStatus } from '../types/DaemonStatus';
+import type { HealthSnapshot } from '../types/HealthSnapshot';
+import type { DaemonActionResponse } from '../types/DaemonActionResponse';
 
 /**
  * Generic API response structure
@@ -59,6 +62,31 @@ async function postAPI<T, B = any>(endpoint: string, body: B): Promise<T> {
   }
 
   return json.data;
+}
+
+/**
+ * Fetch wrapper for PUT API calls with JSON body
+ */
+async function putAPI<T, B = any>(endpoint: string, body: B): Promise<T> {
+  const response = await fetch(endpoint, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  const json = await response.json() as ApiResponse<T>;
+
+  if (!json.success) {
+    throw new Error(json.error || 'API request failed');
+  }
+
+  return json.data as T;
 }
 
 /**
@@ -132,5 +160,69 @@ export const api = {
       '/api/channels/validate',
       request
     );
+  },
+
+  // Dashboard API methods
+  /**
+   * Get daemon process status
+   */
+  async getDaemonStatus(): Promise<DaemonStatus> {
+    return fetchAPI<DaemonStatus>('/api/dashboard/daemon/status');
+  },
+
+  /**
+   * Start the OpenClaw daemon
+   */
+  async startDaemon(): Promise<DaemonActionResponse> {
+    return postAPI<DaemonActionResponse>('/api/dashboard/daemon/start', {});
+  },
+
+  /**
+   * Stop the OpenClaw daemon
+   */
+  async stopDaemon(): Promise<DaemonActionResponse> {
+    return postAPI<DaemonActionResponse>('/api/dashboard/daemon/stop', {});
+  },
+
+  /**
+   * Restart the OpenClaw daemon
+   */
+  async restartDaemon(): Promise<DaemonActionResponse> {
+    return postAPI<DaemonActionResponse>('/api/dashboard/daemon/restart', {});
+  },
+
+  /**
+   * Get gateway health snapshot
+   */
+  async getHealth(): Promise<HealthSnapshot> {
+    return fetchAPI<HealthSnapshot>('/api/dashboard/health');
+  },
+
+  /**
+   * Get current config (openclaw.json)
+   */
+  async getConfig(): Promise<any> {
+    return fetchAPI<any>('/api/dashboard/config');
+  },
+
+  /**
+   * Save dashboard config to openclaw.json
+   */
+  async saveDashboardConfig(config: any): Promise<void> {
+    await putAPI<void>('/api/dashboard/config', config);
+  },
+
+  /**
+   * Import config from uploaded JSON
+   */
+  async importConfig(config: any): Promise<void> {
+    await postAPI<void>('/api/dashboard/config/import', config);
+  },
+
+  /**
+   * Export current config as JSON
+   */
+  async exportConfig(): Promise<any> {
+    return fetchAPI<any>('/api/dashboard/config/export');
   },
 };
