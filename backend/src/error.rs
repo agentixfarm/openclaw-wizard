@@ -17,6 +17,21 @@ pub enum AppError {
 
     #[error("Bad request: {0}")]
     BadRequest(String),
+
+    #[error("SSH connection failed: {0}")]
+    SshConnectionFailed(String),
+
+    #[error("SSH authentication failed: {0}")]
+    SshAuthFailed(String),
+
+    #[error("Remote command failed: {0}")]
+    SshCommandFailed(String),
+
+    #[error("SSH credentials not found: {0}")]
+    SshCredentialsNotFound(String),
+
+    #[error("Keyring error: {0}")]
+    KeyringError(String),
 }
 
 impl IntoResponse for AppError {
@@ -25,6 +40,11 @@ impl IntoResponse for AppError {
             AppError::InternalError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
+            AppError::SshConnectionFailed(msg) => (StatusCode::BAD_GATEWAY, msg),
+            AppError::SshAuthFailed(msg) => (StatusCode::UNAUTHORIZED, msg),
+            AppError::SshCommandFailed(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            AppError::SshCredentialsNotFound(msg) => (StatusCode::NOT_FOUND, msg),
+            AppError::KeyringError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
         };
 
         let body = Json(ApiResponse::<()> {

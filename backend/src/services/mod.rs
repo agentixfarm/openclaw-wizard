@@ -6,3 +6,6 @@ pub mod detection;
 pub mod health;
 pub mod installer;
 pub mod platform;
+pub mod ssh;
+
+pub use ssh::SshService;
