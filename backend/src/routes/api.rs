@@ -1,7 +1,7 @@
 use axum::Json;
-use std::env;
 
 use crate::models::{ApiResponse, SystemInfo};
+use crate::services::platform::Platform;
 
 /// Health check endpoint
 pub async fn health() -> Json<ApiResponse<()>> {
@@ -14,12 +14,7 @@ pub async fn health() -> Json<ApiResponse<()>> {
 
 /// System information endpoint
 pub async fn system_info() -> Json<ApiResponse<SystemInfo>> {
-    let info = SystemInfo {
-        os: env::consts::OS.to_string(),
-        arch: env::consts::ARCH.to_string(),
-        node_version: None,
-        openclaw_installed: false,
-    };
+    let info = Platform::system_info();
 
     Json(ApiResponse {
         success: true,

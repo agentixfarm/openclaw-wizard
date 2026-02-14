@@ -1,0 +1,13 @@
+.planning/
+
+# Rust
+/backend/target/
+/backend/Cargo.lock
+
+# Node
+/frontend/node_modules/
+/frontend/dist/
+
+# Build artifacts
+*.log
+.DS_Store
