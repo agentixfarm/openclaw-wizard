@@ -10,6 +10,7 @@ import type { ChannelValidationResponse } from '../types/ChannelValidationRespon
 import type { DaemonStatus } from '../types/DaemonStatus';
 import type { HealthSnapshot } from '../types/HealthSnapshot';
 import type { DaemonActionResponse } from '../types/DaemonActionResponse';
+import type { SshConnectionResponse } from '../types/SshConnectionResponse';
 
 /**
  * Generic API response structure
@@ -224,5 +225,31 @@ export const api = {
    */
   async exportConfig(): Promise<any> {
     return fetchAPI<any>('/api/dashboard/config/export');
+  },
+
+  /**
+   * Test SSH connection to a remote VPS
+   * Note: Response shape is SshConnectionResponse (not wrapped in ApiResponse)
+   */
+  async testSshConnection(credentials: {
+    host: string;
+    username: string;
+    keyPath: string;
+  }): Promise<SshConnectionResponse> {
+    const response = await fetch('/api/remote/test-connection', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        host: credentials.host,
+        username: credentials.username,
+        key_path: credentials.keyPath,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json() as Promise<SshConnectionResponse>;
   },
 };

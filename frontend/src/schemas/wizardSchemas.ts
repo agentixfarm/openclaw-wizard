@@ -52,6 +52,24 @@ export const wizardSchema = z.object({
   providerConfig: providerConfigSchema.optional(),
   gatewayConfig: gatewayConfigSchema.optional(),
   channelsConfig: channelsConfigSchema.optional(),
+  // Phase 5: SSH & Remote Setup
+  sshCredentials: sshCredentialsSchema.optional(),
+  securityAck: securityAckSchema.optional(),
+  advancedConfig: advancedConfigSchema.optional(),
+});
+
+/**
+ * SSH Credentials step schema (Phase 5)
+ */
+export const sshCredentialsSchema = z.object({
+  host: z.string()
+    .min(1, 'Hostname is required')
+    .regex(/^[a-zA-Z0-9.-]+$/, 'Invalid hostname format'),
+  username: z.string()
+    .min(1, 'Username is required')
+    .regex(/^[a-z_][a-z0-9_-]*$/, 'Invalid username format'),
+  keyPath: z.string()
+    .min(1, 'SSH key path is required'),
 });
 
 /**
@@ -98,5 +116,6 @@ export type WizardFormData = z.infer<typeof wizardSchema>;
 export type SystemCheckData = z.infer<typeof systemCheckSchema>;
 export type ProviderConfigData = z.input<typeof providerConfigSchema>;
 export type GatewayConfigData = z.input<typeof gatewayConfigSchema>;
+export type SshCredentialsData = z.infer<typeof sshCredentialsSchema>;
 export type SecurityAckData = z.infer<typeof securityAckSchema>;
 export type AdvancedConfigData = z.infer<typeof advancedConfigSchema>;
