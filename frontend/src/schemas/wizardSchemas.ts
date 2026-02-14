@@ -55,6 +55,16 @@ export const wizardSchema = z.object({
 });
 
 /**
+ * Security Acknowledgement step schema (Phase 5)
+ */
+export const securityAckSchema = z.object({
+  acknowledged: z.boolean().refine((val) => val === true, {
+    message: "You must acknowledge the security implications to proceed",
+  }),
+  timestamp: z.number(),
+});
+
+/**
  * Inferred TypeScript type for wizard form data
  */
 export type WizardFormData = z.infer<typeof wizardSchema>;
@@ -65,3 +75,4 @@ export type WizardFormData = z.infer<typeof wizardSchema>;
 export type SystemCheckData = z.infer<typeof systemCheckSchema>;
 export type ProviderConfigData = z.input<typeof providerConfigSchema>;
 export type GatewayConfigData = z.input<typeof gatewayConfigSchema>;
+export type SecurityAckData = z.infer<typeof securityAckSchema>;
