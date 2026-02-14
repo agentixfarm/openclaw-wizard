@@ -100,6 +100,37 @@ pub struct ApiKeyValidationResponse {
     pub error: Option<String>,
 }
 
+/// Channel token validation request
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct ChannelValidationRequest {
+    pub platform: String,    // "telegram", "discord", "slack"
+    pub token: String,       // Bot token
+    pub app_token: Option<String>,  // For Slack app-level token
+}
+
+/// Channel token validation response
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct ChannelValidationResponse {
+    pub valid: bool,
+    pub error: Option<String>,
+    pub bot_name: Option<String>,     // Display name of validated bot
+    pub bot_username: Option<String>, // Username (@handle) of bot
+}
+
+/// Channel configuration for saving
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct ChannelConfig {
+    pub platform: String,
+    pub enabled: bool,
+    pub bot_token: Option<String>,
+    pub app_token: Option<String>,    // Slack only
+    pub dm_policy: String,            // "allowlist" default
+    pub allowed_users: Vec<String>,   // User IDs or phone numbers
+}
+
 /// Wizard config to save
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../bindings/")]
@@ -112,6 +143,7 @@ pub struct WizardConfig {
     pub gateway_bind: String,
     pub auth_mode: String,
     pub auth_credential: Option<String>,
+    pub channels: Option<Vec<ChannelConfig>>,  // NEW field
 }
 
 /// Installation request
