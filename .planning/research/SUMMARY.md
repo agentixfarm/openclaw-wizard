@@ -1,369 +1,250 @@
 # Project Research Summary
 
-**Project:** OpenClaw Wizard
-**Domain:** Local-first Setup Wizard + Management Dashboard (Web App → Tauri Desktop)
+**Project:** OpenClaw Wizard v1.1 - Control Center Transformation
+**Domain:** Local-first Management Dashboard with Remote Execution, AI Integration & Skills Marketplace
 **Researched:** 2026-02-14
 **Confidence:** HIGH
 
 ## Executive Summary
 
-OpenClaw Wizard is a GUI installer and management dashboard for OpenClaw, a complex CLI tool for LLM-powered chat across multiple platforms. The research reveals this is a local-first web application that wraps system operations with a user-friendly interface, similar to Docker Desktop or Cork (Homebrew GUI). The recommended approach is to build a React frontend served by a Rust (Axum) backend that handles all system operations, with a clean migration path to Tauri desktop app for monetization ($29 desktop product).
+OpenClaw Wizard v1.1 transforms an existing local setup wizard into a comprehensive control center for managing OpenClaw AI assistants. The research reveals this is a hybrid architecture combining local dashboard patterns (Docker Desktop, Portainer) with remote execution capabilities (VS Code Remote-SSH), skills marketplace integration (VS Code Extensions), and AI-powered optimization (unique to this domain). The recommended approach builds on the proven Axum 0.8 + React 19 foundation, adding SSH remote execution (openssh/async-ssh2-tokio), Docker container management (bollard), real-time log streaming (linemux/WebSocket), and skills discovery (ClawHub API integration).
 
-The technical foundation is solid: React 19 + Vite 6 for the frontend, Axum 0.8 + Tokio for the Rust backend, with type safety across the stack via ts-rs. The architecture follows a proven pattern of WebSocket streaming for real-time progress updates during long operations (npm install, service management), with careful security boundaries around shell command execution. The MVP centers on 14 core features that eliminate the need for terminal expertise: step-by-step wizard, dependency detection/installation, one-click daemon management, and live health monitoring.
+The path forward prioritizes security-first design patterns: SSH credentials must use platform keychain (never localStorage), Docker containers require strict resource limits to prevent host exhaustion, and skills need WASM-based sandboxing to prevent supply chain attacks. The architecture follows service-oriented patterns where new capabilities (SshService, DockerService, SkillsService, LogStreamService, AuditService) integrate cleanly with existing health monitoring and daemon management services. This allows incremental rollout without disrupting the working v1.0 wizard.
 
-Critical risks center on security (shell command injection), upstream stability (OpenClaw's 9,833 commits mean breaking changes are inevitable), and cross-platform complexity (macOS/Linux/WSL2 path handling). Mitigation requires strict input validation with Tauri's shell command scopes, runtime version detection with compatibility matrices, and platform-specific testing from day one. The research shows that installers commonly fail in three areas: unrecoverable installation states after failures, npm permission battles requiring sudo, and UI freezes during async operations. Addressing these with transactional installation patterns, nvm-based npm setup, and proper progress indicators is essential for production readiness.
+Key risks center on security and reliability: russh CVE-2024-43410 DoS vulnerability requires version pinning (>= 0.44.1), unbounded tokio channels for log streaming create memory leaks under load, and multi-server orchestration needs saga pattern rollback for partial failures. The AI-powered cost optimizer is a unique differentiator (70% savings proven via model routing research), but requires secret redaction before sending configs to external APIs. Implementation should follow a phased approach: security foundations first (SSH credential handling, dependency auditing), then core features (Docker, skills, logs), and finally advanced capabilities (multi-node, AI auditing).
 
 ## Key Findings
 
 ### Recommended Stack
 
-**Modern local-first architecture with clear Tauri migration path.** The stack prioritizes developer experience (type safety, fast iteration) while avoiding common pitfalls (Create React App is sunset, Electron is bloated, Redux is overkill for this use case).
+The v1.1 stack extends the existing React 19 + Axum 0.8 foundation with capabilities for remote execution, containerization, and AI integration. Core additions include async SSH libraries for remote VPS management, Docker API clients for sandboxed environments, log streaming infrastructure for real-time monitoring, and AI API integration for cost optimization and security auditing.
 
 **Core technologies:**
-- **React 19.2.4 + Vite 6:** Industry standard UI framework with near-instant HMR. React 19 includes DoS mitigations critical for production. Vite replaces Create React App as the primary choice for React projects.
-- **Axum 0.8.8 (Rust):** Tokio-based web framework for backend. 20% lower latency than previous versions, simpler API than Actix (10-15% slower but better DX). Handles static serving + API + WebSocket from single binary.
-- **TypeScript 5.x + ts-rs 7.1+:** End-to-end type safety. Rust structs auto-generate TypeScript types, eliminating runtime surprises and providing single source of truth for API contracts.
-- **TanStack Query 5.x + Zustand 4.x:** Modern state management split: server state (TanStack Query handles caching/refetching) and client state (Zustand for wizard progress). Replaces Redux complexity.
-- **Shadcn/ui + Tailwind 4.x:** Copy-paste components built on Radix UI. Full customization without package bloat, better for custom wizard UIs than Material-UI or Ant Design.
-- **Tauri 2.x (Phase 2):** Desktop conversion with 10-15MB binaries vs Electron's 100-200MB. Same React frontend, minimal backend changes (Axum routes become Tauri commands).
-- **service-manager + confique (Rust):** Cross-platform daemon management (systemd/launchd abstraction) and type-safe config loading (TOML, env vars, layered configs).
+- **async-ssh2-tokio 0.9.1**: High-level async SSH wrapper for remote setup operations — integrates with existing Tokio runtime, simpler API than low-level russh for command execution
+- **bollard 0.19.2**: Docker daemon API client for container management — industry standard for Rust, supports all Docker operations, active maintenance with moby API 1.49
+- **linemux 0.3.0**: Async log file tailing with multiplexing — purpose-built for streaming daemon/gateway logs via WebSocket, handles non-existent files gracefully
+- **async-openai 0.30.1**: OpenAI API client for AI-powered config auditing — most mature unofficial Rust client, full streaming support, recommended starting point (add genai for multi-provider later)
+- **@melloware/react-logviewer 6.3.4**: React log viewing component — supports WebSocket/EventSource streaming, ANSI highlighting, lazy-loading, actively maintained
+- **Tailwind CSS v4 dark mode**: Built-in selector strategy with CSS variables — no external theme library needed, simpler and faster than styled-components
 
-**Critical version requirements:**
-- Tokio 1.47.x (LTS until Sep 2026) for Axum compatibility
-- React Router 7.x in SPA mode (not SSR) for local-only serving
-- Shadcn/ui components updated for Tailwind v4 + React 19
+**Version compatibility:** All new dependencies integrate with existing Tokio 1.47.x runtime. React components forward-compatible with React 19. No breaking changes to v1.0 stack required.
 
 ### Expected Features
 
-**The MVP must deliver "non-technical users successfully set up OpenClaw without touching terminal."** Research shows 14 features achieve this, split between table stakes (users expect) and differentiators (competitive advantage).
+Research across Docker Desktop, Portainer, LM Studio, and VS Code reveals clear table stakes for modern management dashboards and unique opportunities for differentiation in the AI assistant space.
 
 **Must have (table stakes):**
-- **Step-by-step wizard flow** — Universal installer pattern. Missing this feels broken.
-- **Progress indicators** — Users need to know where they are (vertical placement tests better for desktop).
-- **Input validation with clear errors** — Real-time validation for API keys, ports, paths with actionable messages ("Port 3000 in use. Try 3001 or stop conflicting service").
-- **Dependency detection and installation** — Auto-detect Node.js, offer to install if missing. Non-technical users can't diagnose prerequisites.
-- **System requirements check** — First screen validates OS version, disk space, network, permissions before wasting time.
-- **Safe defaults** — Pre-select sensible values (port 3000, localhost, password auth). Show "Advanced" disclosure for experts.
-- **Visual feedback during long operations** — Spinner/progress bar with status text prevents perceived freezing.
+- **Skills: Browse/Install/Uninstall** — Every marketplace (VS Code, Docker Extensions) has visual discovery with categories and one-click install. ClawHub provides 5,705 skills as of Feb 2026.
+- **Log Viewer: Real-time Streaming + Search** — Docker Desktop, Portainer, Better Stack all stream logs live with keyword filtering. Essential for debugging.
+- **Service: Start/Stop/Restart** — Non-negotiable for daemon management. Docker Desktop, systemd GUIs expose these controls prominently.
+- **Multi-Mode: Local + Docker Sandbox** — Local install is v1.0 default. Docker sandbox aligns with OpenClaw's Feb 2026 Sandbox feature for safe experimentation.
+- **Dark Mode Toggle** — Universal expectation in modern desktop apps (VS Code, Docker Desktop, Portainer). Tailwind v4 makes this trivial.
 
-**Should have (competitive):**
-- **Auto-detection of existing config** — Scan for openclaw.json, .env files, running daemon. Pre-populate wizard. Transforms "start from scratch" to "complete what's missing."
-- **Interactive QR code for WhatsApp** — Real-time QR generation eliminates copy-paste errors. Matches mobile pairing UX. Critical for #1 requested channel.
-- **Live health dashboard post-setup** — Real-time status: gateway up/down, channels connected, recent errors. Differentiates from "install and pray" tools.
-- **One-click daemon management** — Start/Stop/Restart buttons. Non-technical users can't diagnose systemd/launchd issues. Core value prop.
-- **API key validation before proceeding** — Test with provider (Anthropic, OpenAI) before saving. Immediate feedback vs discovering failure later.
-- **Configuration preview before commit** — Summary screen showing all selections. Allow back navigation to edit.
+**Should have (competitive differentiators):**
+- **AI-Powered Cost Optimizer** — UNIQUE to AI assistant space. LiteLLM research shows 70% cost reduction possible via model routing. No competitor offers this. Analyze config, suggest cheaper models (DeepSeek at $0.10/MTok vs GPT-4 at $30/MTok).
+- **Security Auditor: Config Validation** — Tenable/enterprise tools audit configs, but not for AI assistants. Check for exposed API keys, insecure channel configs, missing encryption.
+- **Skills: VirusTotal Integration** — OpenClaw has VirusTotal partnership. Surface security scans before install. Unique trust signal vs competitors.
+- **Multi-Mode: SSH Remote Install** — VS Code Remote-SSH proves demand for remote management. Install OpenClaw on headless VPS from desktop wizard.
 
 **Defer (v2+):**
-- **All 13+ OpenClaw channels** — Start with WhatsApp/Telegram/Discord/Slack (80% of users). Add based on demand.
-- **Ollama/local model support** — Significant complexity (GPU requirements, model downloads). High friction for adoption.
-- **Channel reconnection workflows** — Handle WhatsApp session expiry. Add when it becomes top support issue.
-- **Guided error recovery** — Context-aware suggestions ("Node not found → Install?"). Add when >10% fail with same error.
-- **Multi-language wizard** — English-first, localize after traction.
-
-**Anti-features (avoid):**
-- **Full CLI replacement** — Scope creep. OpenClaw's TUI already handles conversations well.
-- **Cloud-hosted wizard** — Security risk with API keys. Trust issue. Local-only at localhost.
-- **Automatic OpenClaw updates** — Users want control for production systems. Show "Update available" notification only.
+- **Multi-Mode: Multi-Node Cluster** — Very high complexity, enterprise feature. Defer until demand signals emerge.
+- **Log Viewer: AI Anomaly Detection** — Ambitious ML feature requiring training data and models. Better Stack offers this, but too complex for v1.1.
+- **Real-Time Cost Tracking** — Requires instrumenting OpenClaw core. Out of wizard scope. Partner with observability tools instead.
+- **Built-in Skill Editor** — Duplicates VS Code. Just open skill directory in user's editor.
 
 ### Architecture Approach
 
-**Local-first monorepo with backend/frontend separation and clean Tauri migration path.** The architecture follows established patterns from Docker Desktop and Portainer: unified binary serving static frontend + API + WebSocket, with system operations isolated in Rust for security.
+The architecture follows a service-oriented pattern where new v1.1 capabilities are implemented as isolated service modules that integrate cleanly with existing v1.0 infrastructure. Each capability (SSH remote execution, Docker container management, skills discovery, log streaming, AI auditing) gets its own service module with clear separation of concerns, called by route handlers that expose REST/WebSocket APIs to the React frontend.
 
 **Major components:**
-1. **React Frontend (Wizard + Dashboard)** — Multi-step wizard UI, health monitoring views, config editor. Uses TanStack Query for API calls, Zustand for wizard state. Served from backend's static file middleware.
-2. **Axum Router (Rust Backend)** — HTTP REST endpoints for wizard steps, config CRUD, health checks. WebSocket endpoint for real-time streaming (install progress, logs). Serves built React app from static/ directory.
-3. **System Services Layer** — Wraps all OS interactions: std::process::Command for shell execution (no shell interpretation), service-manager for daemon control (launchd/systemd abstraction), confique for config file operations.
-4. **Config Manager** — Atomic writes (temp file + rename), serde_json parsing, handles OpenClaw's 4 config locations with precedence rules.
+1. **SshService (NEW)** — Connection pooling for remote VPS command execution. Uses openssh crate for async operations, implements LRU eviction to prevent connection exhaustion (max 5 per host).
+2. **DockerService (NEW)** — Container lifecycle management via bollard. Creates sandboxed OpenClaw instances with strict resource limits (--memory, --cpus, --pids-limit) to prevent host exhaustion.
+3. **SkillsService (NEW)** — npm registry integration for discovering openclaw-skill packages. Parses metadata, handles install/uninstall via SafeCommand wrapper.
+4. **LogStreamService (NEW)** — Tail daemon/gateway logs using subprocess + mpsc channel → WebSocket. Uses bounded channels (capacity 1000) with backpressure to prevent memory leaks.
+5. **AuditService (NEW)** — AI API integration (OpenAI/Claude) for config analysis. Implements secret redaction before sending to external APIs, caches results by config hash.
+6. **RemoteService (NEW)** — Multi-node coordination using SshService. Implements saga pattern for rollback on partial failures, tracks deployment state per server.
 
-**Key patterns:**
-- **Type safety via ts-rs:** Rust structs with `#[derive(TS)]` auto-generate TypeScript types. Single source of truth prevents drift.
-- **WebSocket for progress streaming:** Long operations (npm install) stream stdout line-by-line to UI. Avoids polling and UI freezes.
-- **Command execution security:** Individual arguments (not shell strings) prevent injection. `Command::new("npm").arg("install").arg(package)` — never `sh -c "npm install {package}"`.
-- **Atomic config writes:** Write to temp file, sync, atomic rename. Prevents corruption on crash/interrupt.
-- **Service manager abstraction:** Trait-based cross-platform API. Platform detection (`#[cfg(target_os)]`) selects launchd vs systemd implementation.
-
-**Migration to Tauri:** 95% code reuse. Shared business logic in backend/src/{config, system}/. Axum handlers become thin wrappers → Tauri commands use same functions. WebSocket → Tauri event emitter (similar API). Feature flags (`#[cfg(feature = "tauri")]`) enable conditional compilation.
+**Integration with existing:** HealthService, DaemonService, ConfigService, SafeCommand remain unchanged. New services extend capabilities without modifying v1.0 patterns. TypeScript types auto-generated via ts-rs maintain type safety across stack.
 
 ### Critical Pitfalls
 
-Research identified 8 critical pitfalls common to installer GUIs wrapping CLI tools. Top 5 by severity:
+1. **SSH Credential Storage in Browser Memory (CRITICAL)** — Storing SSH keys/passwords in React state or localStorage exposes them to XSS attacks and creates permanent attack surface. Use platform keychain (keyring crate), never cache credentials, load from secure storage only when needed. Address in Phase 1 (SSH Security Foundation) before any SSH code.
 
-1. **Shell command injection via user input** — Concatenating user data into shell strings enables remote code execution. OpenClaw Wizard accepts API keys, file paths, config values as input. Prevention: Use Tauri shell command scope allowlist, pass arguments separately via `Command::arg()`, validate all input against strict schemas, never use string interpolation with user data.
+2. **Unauthenticated Memory Allocation DoS in russh (CVE-2024-43410)** — Versions before 0.44.1 allow remote DoS via untrusted packet lengths. Pin to russh >= 0.44.1, run cargo-audit in CI, implement connection rate limiting. Address in Phase 1 (SSH Dependencies).
 
-2. **Upstream CLI instability (OpenClaw's 9,833 commits)** — Hardcoding assumptions about CLI flags, config format, or installation steps breaks when OpenClaw releases breaking changes. Prevention: Query OpenClaw version at runtime, maintain compatibility matrix, parse help output or import config schemas directly, fail gracefully with "This wizard supports OpenClaw 1.x-2.x" messages, monitor GitHub releases via CI.
+3. **Docker Socket Mounting = Root Access (CRITICAL)** — Mounting /var/run/docker.sock into containers grants unrestricted host access, enabling container escape. Never mount socket, use rootless Docker, call API from Rust backend only. Address in Phase 2 (Docker Security Architecture).
 
-3. **Cross-platform path assumptions** — Hardcoded paths like `/usr/local/bin` or `C:\Program Files`, assuming Unix path separators, not handling spaces in paths. WSL2's `/mnt/c/` performs 20x slower than Linux filesystem. Prevention: Detect OS-specific defaults at runtime, use PathBuf/path.join(), quote all paths in shell commands, guide WSL2 users to Linux filesystem, test on macOS/Linux/WSL2 from day one.
+4. **Skill Dependency Hell and Supply Chain Attacks** — Skills are untrusted code with arbitrary execution. Malicious skills can steal credentials or mine crypto. Implement WASM-based sandboxing with capability-based security (wasmtime), verify signatures, default deny all capabilities. Address in Phase 3 (Skills Sandbox Architecture).
 
-4. **Unrecoverable failed installation state** — Installation fails halfway (network timeout, permission denied), leaves system broken (some files installed, some config written, services registered). Re-running fails because "OpenClaw is already installed" but not working. Prevention: Implement transactional installation with operation manifest, rollback on failure in reverse order, validate preconditions (disk space, permissions, network) before starting, provide explicit "uninstall/reset" command.
-
-5. **npm global install permission battles** — `npm install -g openclaw` fails with EACCES on `/usr/local/lib/node_modules`. Users resort to `sudo npm install`, creating root-owned files that break updates and introduce security risks (malicious packages run as root). Prevention: Detect nvm and use it (automatically handles permissions), configure npm user directory if no nvm, **never** suggest `sudo npm install`, pre-flight check write permissions before attempting install.
-
-**Other critical pitfalls:**
-- **Async UI freezes:** Long commands (npm install) run synchronously, freezing UI. Users think app crashed, force-quit. Use async execution + stdout streaming + progress indicators.
-- **Config schema drift:** Duplicating OpenClaw's validation logic breaks when schemas change. Import Zod schemas directly or minimal validation + let OpenClaw validate.
-- **Service registration without cleanup:** Registering launchd/systemd service without uninstall leaves orphaned services. Implement matching disable/uninstall for every system modification.
+5. **Unbounded Channel Memory Leaks in Log Streaming** — Using tokio::sync::mpsc::unbounded_channel() for logs causes memory growth until OOM when producers output faster than consumers process. Use bounded channels (capacity 1000), implement backpressure, rate limiting. Address in Phase 4 (Log Streaming Foundation).
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure addresses dependencies (detection before installation), architecture patterns (foundation before features), and pitfalls (security first, cross-platform from start):
+Based on research, suggested phase structure follows dependency order and security-first principles:
 
-### Phase 1: Foundation & Security
-**Rationale:** Security vulnerabilities in shell command execution and cross-platform path handling must be addressed before any system operations. Type safety infrastructure prevents frontend/backend drift. Version detection enables graceful degradation when OpenClaw changes.
-
-**Delivers:**
-- Backend scaffolding (Axum router, static serving, ts-rs pipeline)
-- Frontend scaffolding (Vite + React, basic layout, API client)
-- Shell command security (Tauri scope configuration, input validation)
-- Cross-platform path utilities (OS detection, PathBuf wrappers)
-- OpenClaw version detection (compatibility checks)
-
-**Addresses:**
-- **Pitfall 1 (Shell injection):** Establishes secure command execution patterns
-- **Pitfall 2 (Upstream instability):** Version detection from the start
-- **Pitfall 3 (Cross-platform paths):** Path handling utilities before any file operations
-
-**Avoids:** Building features on insecure foundation, having to retrofit security later.
-
-### Phase 2: System Detection & Prerequisites
-**Rationale:** Can't install dependencies until we know what's missing. Detection must run before wizard to pre-populate state and skip completed steps.
+### Phase 1: SSH Security & Remote Foundation (Week 1)
+**Rationale:** Security must come first. SSH credential handling and dependency management are prerequisites for all remote features. Establishing secure patterns now prevents costly security retrofitting later.
 
 **Delivers:**
-- OS/environment detection (macOS/Linux/WSL2, Node.js version, OpenClaw installation)
-- System requirements check (disk space, permissions, network)
-- Auto-detection of existing config (scan openclaw.json, .env, running daemon)
-- npm permission handling (detect nvm, configure user-scoped npm)
-- Detection API endpoints + UI
+- Secure SSH credential storage via platform keychain (keyring crate)
+- russh >= 0.44.1 with CVE-2024-43410 fix
+- SshService with connection pooling and rate limiting
+- Single remote VPS setup endpoint (/api/remote/setup)
 
 **Addresses:**
-- **Features:** System requirements check, auto-detection of existing config
-- **Pitfall 5 (npm permissions):** Prevents permission errors before they happen
+- Pitfall 1 (SSH credential storage)
+- Pitfall 2 (russh CVE)
+- Multi-Mode: SSH Remote Install (basic version)
 
-**Uses:** Type-safe detection models (ts-rs), cross-platform path utilities from Phase 1
+**Avoids:** SSH credentials in localStorage, DoS vulnerabilities, connection exhaustion
 
-### Phase 3: Wizard Core
-**Rationale:** Detection data feeds wizard. Wizard validates before installation. Can't proceed to installation until wizard flow is solid.
+### Phase 2: Docker Container Management (Week 2)
+**Rationale:** Docker sandboxing enables safe skill execution (dependency for Phase 3). Security architecture must be established before arbitrary code execution. Resource limits prevent host exhaustion.
 
 **Delivers:**
-- Multi-step wizard UI (step navigation, progress indicators)
-- Input validation (API keys, ports, paths with real-time feedback)
-- Safe defaults for technical settings (ports, bind modes, auth)
-- Configuration preview before commit (summary screen, back navigation)
-- Wizard state management (Zustand for client state, TanStack Query for API)
+- DockerService with bollard integration
+- Container CRUD operations with strict resource limits
+- /api/docker/* routes for container management
+- Docker sandbox mode in wizard
 
-**Addresses:**
-- **Features:** Step-by-step wizard, progress indicators, input validation, safe defaults, config preview
-- **Architecture:** React components, Zustand state management
+**Uses:**
+- bollard 0.19.2 for Docker API
+- Existing SafeCommand patterns for validation
 
-**Implements:** Table stakes wizard UX that users expect from installers.
+**Implements:**
+- DockerService component from architecture
+- Multi-Mode: Docker Sandbox feature
 
-### Phase 4: Real-Time Installation
-**Rationale:** Wizard collects config. Installation executes long-running operations. WebSocket streaming prevents UI freezes and enables transactional rollback.
+**Avoids:** Docker socket mounting, unbounded container creation, resource exhaustion (Pitfall 3, 10)
 
-**Delivers:**
-- Async command execution (tokio::process with stdout streaming)
-- WebSocket handler for progress updates (install logs, status messages)
-- Progress indicators during long operations (spinners, progress bars, elapsed time)
-- Transactional installation (operation manifest, rollback on failure)
-- Node.js installation if missing (nvm-based, no sudo)
-- OpenClaw npm installation (global with user permissions)
-
-**Addresses:**
-- **Features:** Dependency detection and installation, visual feedback during operations
-- **Pitfall 4 (Failed installation state):** Transactional pattern with rollback
-- **Pitfall 6 (UI freezes):** Async execution with streaming
-
-**Uses:** WebSocket patterns from ARCHITECTURE.md, npm permission handling from Phase 2
-
-### Phase 5: Daemon Management
-**Rationale:** Installation places binaries. Daemon management starts/stops services. Health monitoring validates daemon is working.
+### Phase 3: Skills Discovery & Sandboxing (Week 3)
+**Rationale:** Skills are highest user value but also highest risk. WASM sandboxing must be in place before exposing ClawHub marketplace. VirusTotal integration builds trust.
 
 **Delivers:**
-- Service manager abstraction (launchd/systemd trait implementation)
-- One-click daemon controls (Start/Stop/Restart/Status buttons)
-- Daemon installation with uninstall/cleanup (no orphaned services)
-- Success confirmation screen (clear completion signal, "What's next" guidance)
+- SkillsService with npm registry search
+- WASM-based skill execution sandbox (wasmtime)
+- Skills browser UI with category filtering
+- VirusTotal security scanning integration
+- /api/skills/* routes
 
 **Addresses:**
-- **Features:** One-click daemon management, success confirmation
-- **Pitfall 8 (Service cleanup):** Uninstall alongside install from the start
+- Skills: Browse/Install/Uninstall (table stakes)
+- Skills: Categories (table stakes)
+- Skills: VirusTotal Integration (differentiator)
 
-**Implements:** service-manager abstraction pattern from ARCHITECTURE.md
+**Avoids:** Supply chain attacks, dependency conflicts, privilege escalation (Pitfall 4)
 
-### Phase 6: Live Health Dashboard
-**Rationale:** Installation complete. Users need ongoing visibility into whether OpenClaw is working. Differentiates from "install and pray" tools.
+### Phase 4: Log Streaming & Monitoring (Week 4)
+**Rationale:** Logs are essential for debugging skills and remote operations from Phases 2-3. Bounded channels prevent memory leaks discovered in research. ANSI sanitization prevents terminal injection attacks.
 
 **Delivers:**
-- Real-time health monitoring (gateway up/down, channel connectivity)
-- WebSocket-based status updates (push not poll, 5-second interval)
-- Dashboard UI (status cards, health indicators, recent errors)
-- API key validation before saving (test with Anthropic/OpenAI)
+- LogStreamService with bounded channels (capacity 1000)
+- /ws/logs WebSocket handler
+- LogViewer React component with search/filter
+- ANSI escape sequence sanitization
 
 **Addresses:**
-- **Features:** Live health dashboard, API key validation
-- **Differentiator:** Ongoing value beyond one-time setup
+- Log Viewer: Real-time Streaming + Search (table stakes)
 
-**Uses:** WebSocket infrastructure from Phase 4
+**Avoids:** Memory leaks, terminal injection attacks (Pitfall 5, 6)
 
-### Phase 7: Channel Setup (MVP Channels)
-**Rationale:** Core installation works. Channels are OpenClaw's purpose. Start with top 4 requested (WhatsApp/Telegram/Discord/Slack).
+### Phase 5: AI-Powered Optimization (Week 5)
+**Rationale:** Unique differentiator but requires secret redaction (dependency on config parsing from v1.0). Cost optimizer leverages research showing 70% savings via model routing.
 
 **Delivers:**
-- WhatsApp setup with interactive QR code (real-time generation, session timeout handling)
-- Telegram/Discord/Slack token input (validation, connection test)
-- Channel configuration UI (channel-specific forms)
+- AuditService with OpenAI/Claude integration
+- Secret redaction before AI API calls
+- Cost optimizer with model recommendations
+- Security auditor for config validation
+- /api/audit/* routes
 
 **Addresses:**
-- **Features:** Interactive QR code for WhatsApp (critical differentiator)
-- **Defer to v2+:** Remaining 9+ channels (add based on demand)
+- Cost Optimizer: Model Recommendations (differentiator)
+- Security Auditor: Config Validation (differentiator)
 
-**Implements:** Channel modules from ARCHITECTURE.md Phase 5
+**Avoids:** Secrets leakage to AI APIs, hallucination trust issues (Pitfall 7)
 
-### Phase 8: Config Editor (Post-Setup Management)
-**Rationale:** Setup wizard is one-time. Config editor enables ongoing adjustments without terminal.
+### Phase 6: Multi-Server & Polish (Week 6)
+**Rationale:** Multi-server orchestration requires all prior infrastructure (SSH, Docker, skills, logs). Saga pattern prevents inconsistent state from partial failures. Dark mode is low-risk quality-of-life addition.
 
 **Delivers:**
-- Visual JSON editor with validation (openclaw.json editing)
-- Smart environment variable management (show precedence, canonical location)
-- Atomic config writes (temp file + rename pattern)
+- RemoteService with saga pattern rollback
+- Multi-node coordination via parallel SSH
+- /api/remote/multi-setup route
+- Dark mode with Tailwind v4 + theme context
+- Integration of all control center features
 
 **Addresses:**
-- **Features:** Config editing for post-install adjustments
-- **Architecture:** Atomic writes pattern from ARCHITECTURE.md
+- Multi-Mode: Multi-Server (advanced feature)
+- Dark Mode Toggle (table stakes)
 
-**Uses:** Config manager from backend foundation
-
-### Phase 9: Tauri Desktop Migration
-**Rationale:** Web app validated. Desktop distribution enables monetization ($29 product).
-
-**Delivers:**
-- Tauri initialization (tauri/ directory, tauri.conf.json)
-- Command migration (Axum handlers → #[tauri::command])
-- Event migration (WebSocket → Tauri event emitter)
-- Desktop build pipeline (native binaries for macOS/Linux/Windows)
-
-**Addresses:**
-- **Monetization:** Desktop distribution at $29
-- **Architecture:** Migration pattern from ARCHITECTURE.md Phase 7
-
-**Uses:** Shared backend logic (95% code reuse via feature flags)
+**Avoids:** Partial deployment failures, inconsistent state (Pitfall 8)
 
 ### Phase Ordering Rationale
 
-**Dependencies drive sequence:**
-- Foundation before features (security, type safety, cross-platform utilities first)
-- Detection before wizard (wizard needs environment data)
-- Wizard before installation (validates before executing)
-- Installation before daemon management (daemon needs binaries installed)
-- Daemon before health monitoring (monitoring needs daemon running)
-- Health before channels (channels depend on healthy gateway)
-
-**Pitfall mitigation:**
-- Phase 1 addresses 3/8 critical pitfalls (shell injection, upstream instability, cross-platform paths) before any features
-- Phase 2 prevents npm permission battles (Pitfall 5) before installation
-- Phase 4 implements transactional installation (Pitfall 4) and async execution (Pitfall 6) in same phase
-- Phase 5 builds cleanup alongside installation (Pitfall 8)
-
-**MVP scope:**
-- Phases 1-7 deliver 14 core features for "non-technical users successfully set up OpenClaw"
-- Phase 8 is enhancement (config editing)
-- Phase 9 is monetization (Tauri desktop)
+- **Security first:** Phases 1-2 establish SSH and Docker security foundations before exposing untrusted code execution (skills) or remote operations. Retrofitting security is nearly impossible.
+- **Dependencies drive order:** Skills (Phase 3) require Docker sandboxing (Phase 2). Multi-server (Phase 6) requires SSH reliability (Phase 1) and orchestration patterns tested in earlier phases.
+- **Value early:** Skills discovery (Phase 3) and log streaming (Phase 4) deliver high user value and can be released incrementally. AI optimization (Phase 5) is differentiator but depends on secret redaction patterns.
+- **Pitfall avoidance:** Each phase addresses 1-2 critical pitfalls from research. Memory leaks (Phase 4), credential storage (Phase 1), container escape (Phase 2) are sequenced to prevent security/reliability debt.
 
 ### Research Flags
 
-**Phases likely needing deeper research during planning:**
-- **Phase 4 (Installation):** Complex dependency management, platform-specific Node.js installation, npm/nvm interaction. Needs research on nvm detection, fallback strategies, error messages.
-- **Phase 5 (Daemon Management):** Platform differences between launchd/systemd are significant. Needs research on service file formats, user vs system services, logging configuration.
-- **Phase 7 (Channels):** WhatsApp Web's pairing protocol may require reverse engineering or library research. QR code generation and session management needs investigation.
+Phases likely needing deeper research during planning:
+- **Phase 3 (Skills Sandboxing):** WASM sandboxing with wasmtime is complex. Need to research capability-based security patterns, WASI filesystem access controls, resource limits. Sparse documentation for Rust + WASM plugins.
+- **Phase 5 (AI Integration):** Secret redaction patterns, prompt engineering for structured output, RAG for hallucination prevention. Research ongoing best practices for AI config analysis.
+- **Phase 6 (Multi-Server):** Saga pattern implementation in Rust, distributed state tracking, idempotent operations. Research orchestration failure modes.
 
-**Phases with standard patterns (skip research-phase):**
-- **Phase 1 (Foundation):** Well-documented patterns. Axum + Vite + ts-rs setup is established.
-- **Phase 3 (Wizard Core):** React wizard patterns are universal. Shadcn/ui components documented.
-- **Phase 6 (Health Dashboard):** WebSocket status updates follow established real-time patterns.
-- **Phase 8 (Config Editor):** JSON editing with Monaco or similar is well-documented.
-- **Phase 9 (Tauri Migration):** Tauri's official migration guide covers this thoroughly.
+Phases with standard patterns (skip research-phase):
+- **Phase 1 (SSH):** SSH connection pooling is well-documented in openssh examples. Keyring integration has clear crates.io docs.
+- **Phase 2 (Docker):** bollard has extensive documentation, Docker resource limits are standard practice. OWASP cheat sheets cover security.
+- **Phase 4 (Logs):** WebSocket + mpsc channel is existing v1.0 pattern. Bounded channels documented in Tokio tutorial.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All technologies have official docs, active maintenance, proven in production. React 19 + Vite 6 + Axum 0.8 are current stable releases. ts-rs for type generation is mature (7.1+). |
-| Features | HIGH | Feature research drew from installer best practices (Docker Desktop, Cork, Portainer), wizard UX patterns, and OpenClaw-specific tutorials. 14 MVP features validated against expert sources. |
-| Architecture | HIGH | Patterns match established approaches for local-first apps (Tauri examples, Rust+React tutorials). WebSocket streaming, atomic writes, service abstraction are proven. Migration path to Tauri documented by framework authors. |
-| Pitfalls | MEDIUM-HIGH | Security pitfalls (shell injection, command execution) well-documented in Tauri/Electron security guides. Upstream instability and cross-platform issues based on practical experience but specific to OpenClaw. npm permission issues extensively documented. |
+| Stack | HIGH | All dependencies verified with crates.io/npm. bollard 0.19.2, async-ssh2-tokio 0.9.1, linemux 0.3.0, async-openai 0.30.1 confirmed. Tailwind v4 dark mode official docs. React 19 compatibility verified. |
+| Features | HIGH | Table stakes validated against Docker Desktop, Portainer, VS Code, LM Studio. ClawHub skill count (5,705) confirmed from Feb 2026 sources. Cost optimization percentages (70%, 28x savings) from AI Pricing Master research. |
+| Architecture | HIGH | Service-oriented patterns match existing v1.0 codebase structure. openssh examples, bollard docs, Axum WebSocket tutorial provide clear implementation paths. WASM sandboxing documented via wasmtime official docs. |
+| Pitfalls | HIGH | CVE-2024-43410 confirmed via CVE database. Docker socket escape documented in OWASP, Wiz Academy. Unbounded channel leak confirmed in Tokio issue #4321. ANSI escape injection documented with recent CVEs (2026). |
 
 **Overall confidence:** HIGH
 
-Research is based on official documentation (React, Vite, Axum, Tauri, Tokio), established patterns from comparable tools (Docker Desktop, Portainer, Cork), and security best practices from Tauri/Electron security guides. Lower confidence areas are OpenClaw-specific (config schema, CLI stability) where assumptions will need runtime validation.
-
 ### Gaps to Address
 
-**OpenClaw version compatibility details:** Research established the need for version detection and compatibility matrices, but the actual breaking points between OpenClaw versions are unknown. **Handle during Phase 1:** Query OpenClaw's version and help output at runtime. Build compatibility logic incrementally as breaking changes are discovered.
+- **WASM skill sandboxing specifics:** Research identified wasmtime as solution, but capability-based security implementation details need deeper exploration during Phase 3 planning. Plan to use /gsd:research-phase for WASI filesystem access patterns.
 
-**WhatsApp Web pairing protocol specifics:** Research confirmed QR code display is critical, but implementation details of session management and timeout handling are unclear. **Handle during Phase 7:** Research existing libraries (whatsapp-web.js, baileys) or OpenClaw's own WhatsApp integration code. May need to wrap OpenClaw's channel setup instead of reimplementing.
+- **AI prompt engineering for structured output:** Research shows hallucination prevention via RAG and chain-of-thought, but specific prompts for config analysis need iteration. Plan to test with sample configs during Phase 5 implementation.
 
-**Node.js installation automation:** Research recommended nvm for permission handling, but cross-platform nvm detection and automated Node.js installation mechanics need validation. **Handle during Phase 4:** Test nvm installation on fresh macOS/Linux/WSL2 systems. Document fallback strategies (manual Node.js install, user-scoped npm config).
+- **Multi-server saga pattern in Rust:** Research identified saga pattern for rollback, but Rust-specific implementations sparse. Plan to research paxakos crate or implement custom state machine during Phase 6.
 
-**Service file configuration variations:** Research established need for launchd/systemd abstraction, but specific service file formats and user vs system service differences require deeper investigation. **Handle during Phase 5:** Use research-phase for daemon management to explore service-manager crate examples and platform-specific service file templates.
+- **ClawHub API integration:** Research confirms 5,705 skills exist, but API authentication, rate limits, pagination not documented. Plan to reverse-engineer from openclaw CLI or contact OpenClaw team during Phase 3.
 
-**Config precedence rules:** OpenClaw has 4 config locations (system-wide, user-wide, project-local, environment variables). Research flagged this as user confusion point, but precedence rules are undocumented. **Handle during Phase 2:** Parse OpenClaw's actual config loading code or test empirically. Document findings for Phase 8 config editor.
+- **Secret redaction edge cases:** Research shows need to redact API keys, but handling embedded secrets in nested config objects requires careful parsing. Plan to test with realistic configs containing various secret formats.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-
-**Framework Documentation:**
-- [React 19.2.4 Release](https://react.dev/blog/2025/10/01/react-19-2) — DoS mitigations, Server Actions
-- [Vite 6.0 Announcement](https://vite.dev/blog/announcing-vite6) — Expanded APIs, polished ecosystem
-- [Axum 0.8.0 Announcement](https://tokio.rs/blog/2025-01-01-announcing-axum-0-8-0) — 20% latency reduction
-- [Tauri 2.0 Stable Release](https://v2.tauri.app/blog/tauri-20/) — Mobile support, improved permissions
-- [Tauri Architecture](https://v2.tauri.app/concept/architecture/) — Official architecture patterns
-- [Tauri Security](https://v2.tauri.app/security/) — Shell scope, isolation pattern, Stronghold
-
-**Stack Components:**
-- [TanStack Query Latest Docs](https://tanstack.com/query/latest/docs/framework/react/overview)
-- [React Router v7 Docs](https://reactrouter.com/)
-- [Shadcn/ui Official Docs](https://ui.shadcn.com/)
-- [Shadcn/ui Tailwind v4 Support](https://ui.shadcn.com/docs/tailwind-v4)
-- [ts-rs GitHub](https://github.com/Aleph-Alpha/ts-rs) — TypeScript generation from Rust
-- [service-manager crates.io](https://crates.io/crates/service-manager) — Cross-platform daemon management
-- [confique docs.rs](https://docs.rs/confique) — Type-safe config loading
-
-**Security:**
-- [Securing Rust Apps: Command Injection Prevention](https://www.stackhawk.com/blog/rust-command-injection-examples-and-prevention/)
-- [Command in std::process - Rust](https://doc.rust-lang.org/std/process/struct.Command.html)
-- [Electron Security](https://www.electronjs.org/docs/latest/tutorial/security)
-- [Tauri Stronghold Plugin](https://v2.tauri.app/plugin/stronghold/)
+- bollard GitHub/crates.io — Docker API client (version 0.19.2 confirmed)
+- async-ssh2-tokio docs.rs — SSH library (version 0.9.1 confirmed)
+- Tokio issue #4321 — Unbounded channel memory leak confirmed
+- CVE-2024-43410 — russh DoS vulnerability confirmed
+- Docker Security - OWASP Cheat Sheet — Socket mounting risks, resource limits
+- Tailwind CSS v4 dark mode docs — Official selector strategy
+- OpenAI API docs — Cost controls, rate limits, privacy policies
 
 ### Secondary (MEDIUM confidence)
+- Docker Desktop, Portainer, LM Studio feature comparisons — Table stakes validation
+- AI Pricing Master (70% cost optimization research) — Model routing savings
+- OpenClaw documentation (skills, ClawHub) — 5,705 skill count from Feb 2026 sources
+- VS Code Remote-SSH patterns — Multi-mode remote setup validation
+- Better Stack, Kloudfuse log monitoring tools — Log streaming best practices
+- Sherlock Rust Security Guide 2026 — Credential management, auditing tools
 
-**Architecture Patterns:**
-- [Rust Web Frameworks in 2026: Axum vs Actix Web](https://aarambhdevhub.medium.com/rust-web-frameworks-in-2026-axum-vs-actix-web-vs-rocket-vs-warp-vs-salvo-which-one-should-you-2db3792c79a2) — Performance comparisons
-- [Rust Backend, React Frontend: Modern Web Architecture Tutorial for 2025](https://markaicode.com/rust-react-web-architecture-tutorial-2025/)
-- [Rust + Yew + Axum + Tauri full-stack example](https://github.com/jetli/rust-yew-axum-tauri-desktop)
-- [Build a Cross-Platform Desktop App in Rust: Tauri 2.0, SQLite, Axum](https://ritik-chopra28.medium.com/build-a-cross-platform-desktop-app-in-rust-tauri-2-0-sqlite-axum-2b9b7b732e0d)
-
-**Feature Research:**
-- [Creating a setup wizard (and when you shouldn't) - LogRocket Blog](https://blog.logrocket.com/ux-design/creating-setup-wizard-when-you-shouldnt/)
-- [Wizard UI Pattern: When to Use It and How to Get It Right - Eleken](https://www.eleken.co/blog-posts/wizard-ui-pattern-explained)
-- [Best Practices for High-Conversion Wizard UI Design & Examples - Lollypop](https://lollypop.design/blog/2026/january/wizard-ui-design/)
-- [Docker Desktop Installation Guide](https://docs.docker.com/desktop/setup/install/windows-install/)
-- [Initial setup | Portainer Documentation](https://docs.portainer.io/start/install/server/setup)
-- [Cork: The Homebrew GUI for macOS](https://corkmac.app/)
-
-**Pitfalls:**
-- [Resolving EACCES permissions errors when installing packages globally | npm Docs](https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally/)
-- [How to Run Linux Software on Windows in 2026 (WSL2 and VMs)](https://thelinuxcode.com/how-to-run-linux-software-on-windows-in-2026-wsl2-and-vms-the-practical-way/)
-- [CLI UX best practices: 3 patterns for improving progress displays | Evil Martians](https://evilmartians.com/chronicles/cli-ux-best-practices-3-patterns-for-improving-progress-displays)
-
-**Real-Time Communication:**
-- [Rust: WebSocket with Axum For RealTime Communications](https://medium.com/@itsuki.enjoy/rust-websocket-with-axum-for-realtime-communications-49a93468268f)
-- [Building Real-Time Applications with WebSockets and Server-Sent Events in Rust](https://dasroot.net/posts/2025/12/building-real-time-applications-with/)
-
-### Tertiary (LOW confidence - needs validation)
-
-- [OpenClaw (Clawdbot) Tutorial: Control Your PC from WhatsApp - DataCamp](https://www.datacamp.com/tutorial/moltbot-clawdbot-tutorial) — Channel setup patterns (may be outdated given 9,833 commits)
-- [Clawdbot WhatsApp & Telegram Setup in 20 Minutes (2026 Guide) - Serenities AI](https://serenitiesai.com/articles/clawdbot-whatsapp-telegram-setup) — Setup steps (needs verification against current OpenClaw version)
+### Tertiary (LOW confidence, needs validation)
+- wasmtime security docs — WASM sandboxing patterns (need to validate with testing)
+- paxakos crate — Distributed consensus for multi-server (alternative: custom saga)
+- ClawHub API (undocumented) — Needs reverse engineering or team contact
 
 ---
 *Research completed: 2026-02-14*
