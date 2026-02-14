@@ -207,3 +207,39 @@ pub struct DaemonActionResponse {
     pub success: bool,
     pub message: String,
 }
+
+// ===== SSH & Remote Setup Types =====
+
+/// SSH connection status and details
+///
+/// Validation rules:
+/// - host: Must match `^[a-zA-Z0-9.-]+$` (hostname or IP)
+/// - username: Must match `^[a-z_][a-z0-9_-]*$` (valid Unix username)
+/// - key_path: Absolute path or `~/.ssh/id_*` pattern
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct SshConnection {
+    pub host: String,
+    pub username: String,
+    pub key_path: String,
+    pub connected: bool,
+    pub error: Option<String>,
+}
+
+/// SSH connection request for testing or establishing connection
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct SshConnectionRequest {
+    pub host: String,
+    pub username: String,
+    pub key_path: String,
+}
+
+/// SSH connection test response
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct SshConnectionResponse {
+    pub success: bool,
+    pub message: String,
+    pub connection: Option<SshConnection>,
+}
