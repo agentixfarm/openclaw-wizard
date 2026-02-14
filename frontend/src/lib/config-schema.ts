@@ -18,8 +18,8 @@ export const channelConfigSchema = z.object({
 export const openClawConfigSchema = z.object({
   gateway: z.object({
     mode: z.string().optional(),
-    port: z.number().min(1024).max(65535).default(18789),
-    bind: z.string().default('127.0.0.1'),
+    port: z.number().min(1024).max(65535).optional().default(18789),
+    bind: z.string().optional().default('127.0.0.1'),
     auth: z.object({
       type: z.enum(['api-key', 'setup-token']),
       credential: z.string().min(1),
@@ -37,3 +37,9 @@ export const openClawConfigSchema = z.object({
  */
 export type OpenClawConfig = z.infer<typeof openClawConfigSchema>;
 export type ChannelConfig = z.infer<typeof channelConfigSchema>;
+
+/**
+ * Input types (before defaults are applied) for forms
+ */
+export type OpenClawConfigInput = z.input<typeof openClawConfigSchema>;
+export type ChannelConfigInput = z.input<typeof channelConfigSchema>;

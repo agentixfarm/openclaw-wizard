@@ -5,6 +5,7 @@ import { useHealthMonitor } from '../../hooks/useHealthMonitor';
 import { StatusCard } from './StatusCard';
 import { DaemonControls } from './DaemonControls';
 import { HealthMonitor } from './HealthMonitor';
+import { ConfigEditor } from './ConfigEditor';
 
 interface DashboardLayoutProps {
   onBackToWizard: () => void;
@@ -127,12 +128,7 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
           {/* Tab Content */}
           <div className="p-6">
             {activeTab === 'overview' && <HealthMonitor health={health} />}
-            {activeTab === 'config' && (
-              <div className="text-center py-12">
-                <Settings className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">Config editor coming soon (Plan 04-03)</p>
-              </div>
-            )}
+            {activeTab === 'config' && <ConfigEditor />}
             {activeTab === 'logs' && (
               <div className="text-center py-12">
                 <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />

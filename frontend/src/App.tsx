@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Toaster } from 'sonner';
 import { WizardProvider, useWizard } from './components/wizard/WizardProvider';
 import { Stepper } from './components/wizard/Stepper';
 import { WizardStep } from './components/wizard/WizardStep';
@@ -80,7 +81,12 @@ function App() {
   const goToWizard = () => setMode('wizard');
 
   if (mode === 'dashboard') {
-    return <DashboardLayout onBackToWizard={goToWizard} />;
+    return (
+      <>
+        <Toaster position="top-right" />
+        <DashboardLayout onBackToWizard={goToWizard} />
+      </>
+    );
   }
 
   return (
