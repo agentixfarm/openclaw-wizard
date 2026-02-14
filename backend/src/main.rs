@@ -3,7 +3,7 @@ mod models;
 mod routes;
 mod services;
 
-use axum::{routing::{get, post}, Router};
+use axum::{routing::{get, post, put}, Router};
 use tower_http::services::ServeDir;
 use tracing::info;
 
@@ -22,6 +22,15 @@ async fn main() {
         .route("/api/wizard/save-config", post(routes::wizard::save_config))
         .route("/api/wizard/install", post(routes::wizard::start_install))
         .route("/api/channels/validate", post(routes::channels::validate_channel_token))
+        // Dashboard routes
+        .route("/api/dashboard/daemon/status", get(routes::dashboard::daemon_status))
+        .route("/api/dashboard/daemon/start", post(routes::dashboard::daemon_start))
+        .route("/api/dashboard/daemon/stop", post(routes::dashboard::daemon_stop))
+        .route("/api/dashboard/daemon/restart", post(routes::dashboard::daemon_restart))
+        .route("/api/dashboard/health", get(routes::dashboard::get_health))
+        .route("/api/dashboard/config", get(routes::dashboard::get_config).put(routes::dashboard::save_config_handler))
+        .route("/api/dashboard/config/import", post(routes::dashboard::import_config))
+        .route("/api/dashboard/config/export", get(routes::dashboard::export_config))
         .route("/ws", get(routes::ws::ws_handler))
         .fallback_service(ServeDir::new("static"));
 
