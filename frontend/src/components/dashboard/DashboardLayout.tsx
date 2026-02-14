@@ -19,7 +19,7 @@ type Tab = 'overview' | 'config' | 'logs';
 export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const { status, actionLoading, start, stop, restart } = useDaemonStatus();
-  const { health } = useHealthMonitor();
+  const { health, refresh: refreshHealth } = useHealthMonitor();
 
   // Format uptime
   const formatUptime = (seconds: bigint | null) => {
@@ -127,7 +127,7 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
 
           {/* Tab Content */}
           <div className="p-6">
-            {activeTab === 'overview' && <HealthMonitor health={health} />}
+            {activeTab === 'overview' && <HealthMonitor health={health} onRefresh={refreshHealth} />}
             {activeTab === 'config' && <ConfigEditor />}
             {activeTab === 'logs' && (
               <div className="text-center py-12">
