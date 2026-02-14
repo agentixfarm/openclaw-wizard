@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { channelsConfigSchema } from './channelSchemas';
 
 /**
  * System Check step schema
@@ -50,6 +51,7 @@ export const wizardSchema = z.object({
   systemCheck: systemCheckSchema.optional(),
   providerConfig: providerConfigSchema.optional(),
   gatewayConfig: gatewayConfigSchema.optional(),
+  channelsConfig: channelsConfigSchema.optional(),
 });
 
 /**
@@ -61,5 +63,5 @@ export type WizardFormData = z.infer<typeof wizardSchema>;
  * Individual step data types
  */
 export type SystemCheckData = z.infer<typeof systemCheckSchema>;
-export type ProviderConfigData = z.infer<typeof providerConfigSchema>;
-export type GatewayConfigData = z.infer<typeof gatewayConfigSchema>;
+export type ProviderConfigData = z.input<typeof providerConfigSchema>;
+export type GatewayConfigData = z.input<typeof gatewayConfigSchema>;

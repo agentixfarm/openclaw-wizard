@@ -5,6 +5,8 @@ import type { ApiKeyValidationRequest } from '../types/ApiKeyValidationRequest';
 import type { ApiKeyValidationResponse } from '../types/ApiKeyValidationResponse';
 import type { WizardConfig } from '../types/WizardConfig';
 import type { InstallRequest } from '../types/InstallRequest';
+import type { ChannelValidationRequest } from '../types/ChannelValidationRequest';
+import type { ChannelValidationResponse } from '../types/ChannelValidationResponse';
 
 /**
  * Generic API response structure
@@ -118,5 +120,17 @@ export const api = {
    */
   async startInstall(request: InstallRequest): Promise<void> {
     await postAPI<void, InstallRequest>('/api/wizard/install', request);
+  },
+
+  /**
+   * Validate a channel bot token
+   */
+  async validateChannelToken(
+    request: ChannelValidationRequest
+  ): Promise<ChannelValidationResponse> {
+    return postAPI<ChannelValidationResponse, ChannelValidationRequest>(
+      '/api/channels/validate',
+      request
+    );
   },
 };

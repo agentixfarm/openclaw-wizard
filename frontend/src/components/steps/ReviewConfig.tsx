@@ -39,6 +39,7 @@ export function ReviewConfig() {
         gateway_bind: gatewayConfig.bind === 'loopback' ? '127.0.0.1' : '0.0.0.0',
         auth_mode: gatewayConfig.authMode,
         auth_credential: gatewayConfig.authCredential || null,
+        channels: null,
       };
 
       await api.saveConfig(config);
