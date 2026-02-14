@@ -32,6 +32,9 @@ async fn main() {
         .route("/api/dashboard/config/import", post(routes::dashboard::import_config))
         .route("/api/dashboard/config/export", get(routes::dashboard::export_config))
         .route("/ws", get(routes::ws::ws_handler))
+        // Remote setup routes
+        .route("/api/remote/test-connection", post(routes::remote::test_ssh_connection))
+        .route("/ws/remote/install", get(routes::remote::ws_remote_install))
         .fallback_service(ServeDir::new("static"));
 
     // Bind server to localhost:3030
