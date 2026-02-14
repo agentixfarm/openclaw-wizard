@@ -6,13 +6,14 @@ import type { HealthSnapshot } from '../../types/HealthSnapshot';
 
 interface HealthMonitorProps {
   health: HealthSnapshot | null;
+  daemonRunning?: boolean;
   onRefresh?: () => void;
 }
 
 /**
  * Gateway health and channel status monitor
  */
-export function HealthMonitor({ health, onRefresh }: HealthMonitorProps) {
+export function HealthMonitor({ health, daemonRunning, onRefresh }: HealthMonitorProps) {
   const [reconnecting, setReconnecting] = useState(false);
 
   if (!health) {
@@ -64,7 +65,11 @@ export function HealthMonitor({ health, onRefresh }: HealthMonitorProps) {
               <XCircle className="w-8 h-8 text-red-600" />
               <div>
                 <p className="text-sm font-medium text-gray-900">Gateway Unreachable</p>
-                <p className="text-xs text-gray-600">Daemon may not be running</p>
+                <p className="text-xs text-gray-600">
+                  {daemonRunning
+                    ? 'Daemon is running but gateway is not responding. Try restarting.'
+                    : 'Start the daemon to bring the gateway online.'}
+                </p>
               </div>
             </>
           )}
@@ -138,6 +143,8 @@ export function HealthMonitor({ health, onRefresh }: HealthMonitorProps) {
                         ? 'bg-green-500'
                         : channel.status === 'error'
                         ? 'bg-red-500'
+                        : channel.status === 'offline'
+                        ? 'bg-yellow-500'
                         : 'bg-gray-400'
                     }`}
                   />
@@ -151,7 +158,7 @@ export function HealthMonitor({ health, onRefresh }: HealthMonitorProps) {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  {channel.status !== 'connected' && (
+                  {channel.status !== 'connected' && channel.status !== 'disabled' && (
                     <button
                       type="button"
                       onClick={handleReconnect}

@@ -5,6 +5,8 @@
 
 use crate::models::types::{ChannelHealth, HealthSnapshot};
 use crate::services::command::SafeCommand;
+use crate::services::config::ConfigWriter;
+use std::path::PathBuf;
 
 pub struct HealthService;
 
@@ -12,37 +14,73 @@ impl HealthService {
     /// Get current health snapshot of the OpenClaw gateway
     ///
     /// Executes `openclaw health --json` and parses the output.
-    /// If the command fails or daemon is not running, returns an unreachable snapshot.
+    /// If the command fails or daemon is not running, returns an unreachable snapshot
+    /// with channels populated from the saved config file as fallback.
     /// This method NEVER errors - it always returns a valid HealthSnapshot.
     pub fn get_health() -> HealthSnapshot {
         // Try to execute health check
         let output = match SafeCommand::run("openclaw", &["health", "--json"]) {
             Ok(out) => out,
             Err(_) => {
-                // openclaw CLI not found or failed to execute
-                return Self::unreachable_snapshot("OpenClaw CLI not found or not executable");
+                return Self::unreachable_with_config_channels();
             }
         };
 
         // Check if command succeeded
         if output.exit_code != 0 {
-            // Daemon not running or health check failed
-            let error_msg = if output.stderr.is_empty() {
-                "Gateway daemon not running or unreachable"
-            } else {
-                output.stderr.trim()
-            };
-            return Self::unreachable_snapshot(error_msg);
+            return Self::unreachable_with_config_channels();
         }
 
         // Try to parse JSON output
         match serde_json::from_str::<serde_json::Value>(&output.stdout) {
             Ok(json) => Self::parse_health_json(json),
-            Err(e) => {
-                // Invalid JSON response
-                Self::unreachable_snapshot(&format!("Invalid health JSON: {}", e))
-            }
+            Err(_) => Self::unreachable_with_config_channels(),
         }
+    }
+
+    /// Create unreachable snapshot but populate channels from saved config
+    fn unreachable_with_config_channels() -> HealthSnapshot {
+        let channels = Self::channels_from_config();
+        HealthSnapshot {
+            gateway_reachable: false,
+            gateway_mode: "unreachable".to_string(),
+            channels,
+            session_count: 0,
+            probe_duration_ms: 0,
+        }
+    }
+
+    /// Read configured channels from openclaw.json as offline fallback
+    fn channels_from_config() -> Vec<ChannelHealth> {
+        let home = std::env::var("HOME").unwrap_or_default();
+        let path = PathBuf::from(&home).join(".openclaw/openclaw.json");
+
+        let config = match ConfigWriter::read_json::<serde_json::Value>(&path) {
+            Ok(c) => c,
+            Err(_) => return vec![],
+        };
+
+        let Some(channels) = config.get("channels").and_then(|v| v.as_object()) else {
+            return vec![];
+        };
+
+        channels
+            .iter()
+            .filter_map(|(_, ch)| {
+                let platform = ch.get("platform")?.as_str()?.to_string();
+                let enabled = ch.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true);
+                Some(ChannelHealth {
+                    platform,
+                    status: if enabled {
+                        "offline".to_string()
+                    } else {
+                        "disabled".to_string()
+                    },
+                    last_active: None,
+                    error_message: None,
+                })
+            })
+            .collect()
     }
 
     /// Parse health JSON from openclaw CLI

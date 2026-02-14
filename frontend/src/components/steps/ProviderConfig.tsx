@@ -14,11 +14,13 @@ export function ProviderConfig() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isValidated, setIsValidated] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [loadingFromConfig, setLoadingFromConfig] = useState(false);
 
   const {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<ProviderConfigData>({
     resolver: zodResolver(providerConfigSchema),
@@ -28,6 +30,26 @@ export function ProviderConfig() {
       apiKey: '',
     },
   });
+
+  const handleLoadFromConfig = async () => {
+    setLoadingFromConfig(true);
+    try {
+      const config = await api.getConfig();
+      if (config?.ai?.api_key) {
+        setValue('apiKey', config.ai.api_key);
+      }
+      if (config?.ai?.provider) {
+        setValue('provider', config.ai.provider);
+      }
+      if (config?.ai?.auth_type) {
+        setValue('authType', config.ai.auth_type === 'token' ? 'setup-token' : 'api-key');
+      }
+    } catch {
+      // Config not available, ignore
+    } finally {
+      setLoadingFromConfig(false);
+    }
+  };
 
   const selectedProvider = watch('provider');
   const selectedAuthType = watch('authType');
@@ -221,6 +243,17 @@ export function ProviderConfig() {
           <p className="mt-1 text-xs text-gray-500">
             Your API key will be securely stored in your configuration file.
           </p>
+          {/* Load from saved config */}
+          {!watch('apiKey') && (
+            <button
+              type="button"
+              onClick={handleLoadFromConfig}
+              disabled={loadingFromConfig}
+              className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline disabled:opacity-50"
+            >
+              {loadingFromConfig ? 'Loading...' : 'Load from saved configuration'}
+            </button>
+          )}
         </div>
 
         {/* Help Text */}

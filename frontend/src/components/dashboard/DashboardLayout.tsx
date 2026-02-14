@@ -127,7 +127,7 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
 
           {/* Tab Content */}
           <div className="p-6">
-            {activeTab === 'overview' && <HealthMonitor health={health} onRefresh={refreshHealth} />}
+            {activeTab === 'overview' && <HealthMonitor health={health} daemonRunning={status?.running ?? false} onRefresh={refreshHealth} />}
             {activeTab === 'config' && <ConfigEditor />}
             {activeTab === 'logs' && (
               <div className="text-center py-12">
