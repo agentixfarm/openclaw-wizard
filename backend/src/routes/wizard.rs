@@ -4,7 +4,7 @@
 
 use axum::Json;
 
-use crate::models::{ApiKeyValidationRequest, ApiKeyValidationResponse, ApiResponse, EmptyResponse, WizardConfig};
+use crate::models::{ApiKeyValidationRequest, ApiKeyValidationResponse, ApiResponse, EmptyResponse, WizardConfig, InstallRequest};
 use crate::services::{config::ConfigWriter, platform::Platform};
 
 /// Validate API key by testing against provider API
@@ -149,4 +149,16 @@ pub async fn save_config(Json(config): Json<WizardConfig>) -> Json<ApiResponse<E
             error: Some(format!("Failed to determine config directory: {}", e)),
         }),
     }
+}
+
+/// Start installation (returns acknowledgment, actual progress via WebSocket)
+pub async fn start_install(Json(_request): Json<InstallRequest>) -> Json<ApiResponse<EmptyResponse>> {
+    Json(ApiResponse {
+        success: true,
+        data: Some(EmptyResponse {
+            success: true,
+            error: None,
+        }),
+        error: None,
+    })
 }

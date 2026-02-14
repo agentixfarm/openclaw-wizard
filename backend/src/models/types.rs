@@ -109,3 +109,23 @@ pub struct WizardConfig {
     pub auth_mode: String,
     pub auth_credential: Option<String>,
 }
+
+/// Installation request
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct InstallRequest {
+    pub install_node: bool,
+    pub install_openclaw: bool,
+}
+
+/// Installation progress update
+#[derive(Debug, Clone, Serialize, Deserialize, TS, Default)]
+#[ts(export, export_to = "../bindings/")]
+pub struct InstallProgress {
+    pub stage: String,           // "node-install", "openclaw-install", "verify"
+    pub status: String,          // "running", "completed", "failed"
+    pub message: String,         // Human-readable progress message
+    pub output_line: Option<String>,  // Raw command output line
+    pub error: Option<String>,   // Error details if failed
+    pub progress_pct: Option<u8>,// Optional percentage (0-100)
+}

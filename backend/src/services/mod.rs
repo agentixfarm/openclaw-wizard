@@ -2,4 +2,5 @@
 pub mod command;
 pub mod config;
 pub mod detection;
+pub mod installer;
 pub mod platform;

@@ -20,6 +20,7 @@ async fn main() {
         .route("/api/system/detect-openclaw", get(routes::api::detect_openclaw))
         .route("/api/wizard/validate-key", post(routes::wizard::validate_api_key))
         .route("/api/wizard/save-config", post(routes::wizard::save_config))
+        .route("/api/wizard/install", post(routes::wizard::start_install))
         .route("/ws", get(routes::ws::ws_handler))
         .fallback_service(ServeDir::new("static"));
 
