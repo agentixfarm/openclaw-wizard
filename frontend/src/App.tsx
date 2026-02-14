@@ -4,6 +4,9 @@ import { WizardStep } from './components/wizard/WizardStep';
 import { WizardNavigation } from './components/wizard/WizardNavigation';
 import { SystemCheck } from './components/steps/SystemCheck';
 import { DetectOpenClaw } from './components/steps/DetectOpenClaw';
+import { ProviderConfig } from './components/steps/ProviderConfig';
+import { GatewayConfig } from './components/steps/GatewayConfig';
+import { ReviewConfig } from './components/steps/ReviewConfig';
 import type { WizardStep as WizardStepType } from './components/wizard/WizardProvider';
 import './App.css';
 
@@ -26,38 +29,11 @@ function CurrentStepRenderer() {
     case 1:
       return <DetectOpenClaw />;
     case 2:
-      return (
-        <WizardStep title="AI Provider Configuration" description="Configure your AI provider">
-          <div className="rounded-md bg-gray-50 p-6 border border-gray-200">
-            <p className="text-sm text-gray-600">
-              This step will be available soon. You'll configure your Anthropic or OpenAI API key here.
-            </p>
-          </div>
-          <WizardNavigation onNext={nextStep} />
-        </WizardStep>
-      );
+      return <ProviderConfig />;
     case 3:
-      return (
-        <WizardStep title="Gateway Configuration" description="Configure gateway settings">
-          <div className="rounded-md bg-gray-50 p-6 border border-gray-200">
-            <p className="text-sm text-gray-600">
-              This step will be available soon. You'll configure the gateway port, bind address, and authentication here.
-            </p>
-          </div>
-          <WizardNavigation onNext={nextStep} />
-        </WizardStep>
-      );
+      return <GatewayConfig />;
     case 4:
-      return (
-        <WizardStep title="Review Configuration" description="Review your settings before installation">
-          <div className="rounded-md bg-gray-50 p-6 border border-gray-200">
-            <p className="text-sm text-gray-600">
-              This step will be available soon. You'll review all your configuration choices here.
-            </p>
-          </div>
-          <WizardNavigation onNext={nextStep} />
-        </WizardStep>
-      );
+      return <ReviewConfig />;
     case 5:
       return (
         <WizardStep title="Install OpenClaw" description="Installing and configuring OpenClaw">
