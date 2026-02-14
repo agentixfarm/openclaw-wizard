@@ -2,10 +2,14 @@ import { useEffect } from 'react';
 import { WizardStep } from '../wizard/WizardStep';
 import { useWizard } from '../wizard/WizardProvider';
 
+interface CompleteProps {
+  onGoToDashboard?: () => void;
+}
+
 /**
  * Setup completion step with next steps guidance
  */
-export function Complete() {
+export function Complete({ onGoToDashboard }: CompleteProps) {
   const { resetWizard } = useWizard();
 
   // Clean up wizard state from localStorage on completion
@@ -134,8 +138,30 @@ export function Complete() {
           </code>
         </div>
 
-        {/* Start Fresh button */}
-        <div className="flex justify-center pt-4">
+        {/* Action buttons */}
+        <div className="flex justify-center gap-4 pt-4">
+          {onGoToDashboard && (
+            <button
+              type="button"
+              onClick={onGoToDashboard}
+              className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <svg
+                className="mr-2 h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
+              </svg>
+              Go to Dashboard
+            </button>
+          )}
           <button
             type="button"
             onClick={handleStartFresh}
