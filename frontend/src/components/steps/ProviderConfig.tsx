@@ -24,21 +24,23 @@ export function ProviderConfig() {
     resolver: zodResolver(providerConfigSchema),
     defaultValues: formData.providerConfig || {
       provider: 'anthropic',
+      authType: 'api-key',
       apiKey: '',
     },
   });
 
   const selectedProvider = watch('provider');
+  const selectedAuthType = watch('authType');
 
-  const getApiKeyPlaceholder = (provider: string) => {
-    switch (provider) {
-      case 'anthropic':
-        return 'sk-ant-api03-...';
-      case 'openai':
-        return 'sk-...';
-      default:
-        return 'Enter your API key';
-    }
+  const getApiKeyPlaceholder = () => {
+    if (selectedProvider === 'openai') return 'sk-...';
+    if (selectedAuthType === 'setup-token') return 'sk-ant-oat01-...';
+    return 'sk-ant-api03-...';
+  };
+
+  const getApiKeyLabel = () => {
+    if (selectedAuthType === 'setup-token') return 'Setup Token';
+    return 'API Key';
   };
 
   const handleSkipValidation = async (data: ProviderConfigData) => {
@@ -54,6 +56,7 @@ export function ProviderConfig() {
       const response = await api.validateApiKey({
         provider: data.provider,
         api_key: data.apiKey,
+        auth_type: data.authType || 'api-key',
       });
 
       if (response.valid) {
@@ -100,20 +103,69 @@ export function ProviderConfig() {
           )}
         </div>
 
-        {/* API Key Input */}
+        {/* Auth Type Selection (Anthropic only) */}
+        {selectedProvider === 'anthropic' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Authentication Method
+            </label>
+            <div className="flex gap-4">
+              <label className={clsx(
+                'flex-1 relative flex items-center gap-3 rounded-lg border p-4 cursor-pointer transition-colors',
+                {
+                  'border-blue-500 bg-blue-50': selectedAuthType === 'api-key',
+                  'border-gray-300 hover:border-gray-400': selectedAuthType !== 'api-key',
+                }
+              )}>
+                <input
+                  type="radio"
+                  {...register('authType')}
+                  value="api-key"
+                  className="sr-only"
+                  disabled={isValidating}
+                />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">API Key</p>
+                  <p className="text-xs text-gray-500">Standard Anthropic API key</p>
+                </div>
+              </label>
+              <label className={clsx(
+                'flex-1 relative flex items-center gap-3 rounded-lg border p-4 cursor-pointer transition-colors',
+                {
+                  'border-blue-500 bg-blue-50': selectedAuthType === 'setup-token',
+                  'border-gray-300 hover:border-gray-400': selectedAuthType !== 'setup-token',
+                }
+              )}>
+                <input
+                  type="radio"
+                  {...register('authType')}
+                  value="setup-token"
+                  className="sr-only"
+                  disabled={isValidating}
+                />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Setup Token</p>
+                  <p className="text-xs text-gray-500">From <code className="text-xs bg-gray-100 px-1 rounded">claude setup-token</code></p>
+                </div>
+              </label>
+            </div>
+          </div>
+        )}
+
+        {/* API Key / Token Input */}
         <div>
           <label
             htmlFor="apiKey"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            API Key
+            {getApiKeyLabel()}
           </label>
           <div className="relative">
             <input
               id="apiKey"
               type={showApiKey ? 'text' : 'password'}
               {...register('apiKey')}
-              placeholder={getApiKeyPlaceholder(selectedProvider)}
+              placeholder={getApiKeyPlaceholder()}
               className={clsx(
                 'w-full px-3 py-2 pr-20 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500',
                 {
@@ -189,10 +241,15 @@ export function ProviderConfig() {
             </div>
             <div className="ml-3">
               <h3 className="text-sm font-medium text-blue-800">
-                Where to find your API key
+                {selectedAuthType === 'setup-token' ? 'How to get a setup token' : 'Where to find your API key'}
               </h3>
               <div className="mt-2 text-sm text-blue-700">
-                {selectedProvider === 'anthropic' ? (
+                {selectedProvider === 'anthropic' && selectedAuthType === 'setup-token' ? (
+                  <p>
+                    Run <code className="bg-blue-100 px-1.5 py-0.5 rounded text-xs font-mono">claude setup-token</code> in
+                    your terminal to generate a setup token. It will start with <code className="bg-blue-100 px-1.5 py-0.5 rounded text-xs font-mono">sk-ant-oat01-</code>.
+                  </p>
+                ) : selectedProvider === 'anthropic' ? (
                   <p>
                     Visit{' '}
                     <a
@@ -228,7 +285,7 @@ export function ProviderConfig() {
         <WizardNavigation
           onNext={onSubmit}
           isSubmitting={isValidating}
-          nextLabel={isValidating ? 'Validating API key...' : 'Validate & Continue'}
+          nextLabel={isValidating ? 'Validating...' : 'Validate & Continue'}
         />
       </form>
     </WizardStep>

@@ -34,6 +34,7 @@ export function ReviewConfig() {
       const config: WizardConfig = {
         provider: providerConfig.provider,
         api_key: providerConfig.apiKey,
+        auth_type: providerConfig.authType || 'api-key',
         gateway_port: gatewayConfig.port,
         gateway_bind: gatewayConfig.bind === 'loopback' ? '127.0.0.1' : '0.0.0.0',
         auth_mode: gatewayConfig.authMode,
@@ -86,7 +87,15 @@ export function ReviewConfig() {
               </dd>
             </div>
             <div>
-              <dt className="text-sm font-medium text-gray-500">API Key</dt>
+              <dt className="text-sm font-medium text-gray-500">Auth Method</dt>
+              <dd className="mt-1 text-sm text-gray-900">
+                {providerConfig?.authType === 'setup-token' ? 'Setup Token' : 'API Key'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm font-medium text-gray-500">
+                {providerConfig?.authType === 'setup-token' ? 'Setup Token' : 'API Key'}
+              </dt>
               <dd className="mt-1 text-sm text-gray-900 font-mono">
                 {providerConfig?.apiKey ? maskSecret(providerConfig.apiKey) : 'Not provided'}
               </dd>

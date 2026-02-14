@@ -11,10 +11,12 @@ export const systemCheckSchema = z.object({
 
 /**
  * Provider Configuration step schema
+ * authType: 'api-key' for standard API keys, 'setup-token' for Anthropic setup tokens (sk-ant-oat01-...)
  */
 export const providerConfigSchema = z.object({
   provider: z.enum(['anthropic', 'openai']),
-  apiKey: z.string().min(10, 'API key must be at least 10 characters'),
+  authType: z.enum(['api-key', 'setup-token']).default('api-key'),
+  apiKey: z.string().min(10, 'Credential must be at least 10 characters'),
 });
 
 /**

@@ -3,4 +3,8 @@
 /**
  * Wizard config to save
  */
-export type WizardConfig = { provider: string, api_key: string, gateway_port: number, gateway_bind: string, auth_mode: string, auth_credential: string | null, };
+export type WizardConfig = { provider: string, api_key: string, 
+/**
+ * "api-key" or "setup-token"
+ */
+auth_type: string, gateway_port: number, gateway_bind: string, auth_mode: string, auth_credential: string | null, };

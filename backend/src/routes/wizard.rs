@@ -7,11 +7,12 @@ use axum::Json;
 use crate::models::{ApiKeyValidationRequest, ApiKeyValidationResponse, ApiResponse, EmptyResponse, WizardConfig, InstallRequest};
 use crate::services::{config::ConfigWriter, platform::Platform};
 
-/// Validate API key by testing against provider API
+/// Validate API key or setup token by testing against provider API
 pub async fn validate_api_key(Json(request): Json<ApiKeyValidationRequest>) -> Json<ApiResponse<ApiKeyValidationResponse>> {
-    let response = match request.provider.as_str() {
-        "anthropic" => validate_anthropic_key(&request.api_key).await,
-        "openai" => validate_openai_key(&request.api_key).await,
+    let response = match (request.provider.as_str(), request.auth_type.as_str()) {
+        ("anthropic", "setup-token") => validate_anthropic_setup_token(&request.api_key),
+        ("anthropic", _) => validate_anthropic_key(&request.api_key).await,
+        ("openai", _) => validate_openai_key(&request.api_key).await,
         _ => ApiKeyValidationResponse {
             valid: false,
             error: Some("Unsupported provider".to_string()),
@@ -23,6 +24,26 @@ pub async fn validate_api_key(Json(request): Json<ApiKeyValidationRequest>) -> J
         data: Some(response),
         error: None,
     })
+}
+
+/// Validate Anthropic setup token format (sk-ant-oat01-...)
+fn validate_anthropic_setup_token(token: &str) -> ApiKeyValidationResponse {
+    if !token.starts_with("sk-ant-oat01-") {
+        return ApiKeyValidationResponse {
+            valid: false,
+            error: Some("Setup token must start with 'sk-ant-oat01-'. Generate one with: claude setup-token".to_string()),
+        };
+    }
+    if token.len() < 80 {
+        return ApiKeyValidationResponse {
+            valid: false,
+            error: Some("Setup token appears too short. Generate a new one with: claude setup-token".to_string()),
+        };
+    }
+    ApiKeyValidationResponse {
+        valid: true,
+        error: None,
+    }
 }
 
 /// Validate Anthropic API key
@@ -106,10 +127,18 @@ async fn validate_openai_key(api_key: &str) -> ApiKeyValidationResponse {
 
 /// Save wizard configuration to openclaw.json
 pub async fn save_config(Json(config): Json<WizardConfig>) -> Json<ApiResponse<EmptyResponse>> {
+    // Map auth_type to OpenClaw's config format
+    // OpenClaw uses: "api-key" for standard keys, "token" for setup tokens
+    let openclaw_auth_type = match config.auth_type.as_str() {
+        "setup-token" => "token",
+        _ => "api-key",
+    };
+
     // Build OpenClaw-compatible JSON config
     let openclaw_config = serde_json::json!({
         "ai": {
             "provider": config.provider,
+            "auth": openclaw_auth_type,
             "apiKey": config.api_key,
         },
         "gateway": {

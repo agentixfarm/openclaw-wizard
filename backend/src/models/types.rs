@@ -89,6 +89,8 @@ pub struct OpenClawDetection {
 pub struct ApiKeyValidationRequest {
     pub provider: String,
     pub api_key: String,
+    /// "api-key" or "setup-token"
+    pub auth_type: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -104,6 +106,8 @@ pub struct ApiKeyValidationResponse {
 pub struct WizardConfig {
     pub provider: String,
     pub api_key: String,
+    /// "api-key" or "setup-token"
+    pub auth_type: String,
     pub gateway_port: u16,
     pub gateway_bind: String,
     pub auth_mode: String,

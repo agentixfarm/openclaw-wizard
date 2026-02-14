@@ -3,4 +3,8 @@
 /**
  * API key validation request/response
  */
-export type ApiKeyValidationRequest = { provider: string, api_key: string, };
+export type ApiKeyValidationRequest = { provider: string, api_key: string, 
+/**
+ * "api-key" or "setup-token"
+ */
+auth_type: string, };
