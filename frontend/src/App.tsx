@@ -11,6 +11,10 @@ import { ChannelConfiguration } from './components/steps/ChannelConfiguration';
 import { ReviewConfig } from './components/steps/ReviewConfig';
 import { InstallProgress } from './components/steps/InstallProgress';
 import { Complete } from './components/steps/Complete';
+import { SecurityAck } from './components/steps/SecurityAck';
+import { AdvancedConfig } from './components/steps/AdvancedConfig';
+import { RemoteInstallProgress } from './components/steps/RemoteInstallProgress';
+import { RemoteSetup } from './components/wizard/RemoteSetup';
 import { DashboardLayout } from './components/dashboard/DashboardLayout';
 import type { WizardStep as WizardStepType } from './components/wizard/WizardProvider';
 import { api } from './api/client';
@@ -21,8 +25,11 @@ type AppMode = 'wizard' | 'dashboard';
 const WIZARD_STEPS: WizardStepType[] = [
   { id: 'system-check', label: 'System Check', description: 'Verify system requirements' },
   { id: 'detect', label: 'Detection', description: 'Find existing installation' },
+  { id: 'security', label: 'Security', description: 'Acknowledge security risks' },
+  { id: 'remote-setup', label: 'Remote Setup', description: 'Configure SSH connection' },
   { id: 'provider', label: 'AI Provider', description: 'Configure AI model' },
   { id: 'gateway', label: 'Gateway', description: 'Configure gateway settings' },
+  { id: 'advanced', label: 'Advanced', description: 'Advanced configuration' },
   { id: 'channels', label: 'Channels', description: 'Configure messaging channels' },
   { id: 'review', label: 'Review', description: 'Review configuration' },
   { id: 'install', label: 'Install', description: 'Install OpenClaw' },
@@ -30,7 +37,8 @@ const WIZARD_STEPS: WizardStepType[] = [
 ];
 
 function CurrentStepRenderer({ onGoToDashboard }: { onGoToDashboard?: () => void }) {
-  const { currentStep } = useWizard();
+  const { currentStep, formData } = useWizard();
+  const hasRemoteCredentials = !!formData.sshCredentials?.host;
 
   switch (currentStep) {
     case 0:
@@ -38,16 +46,23 @@ function CurrentStepRenderer({ onGoToDashboard }: { onGoToDashboard?: () => void
     case 1:
       return <DetectOpenClaw />;
     case 2:
-      return <ProviderConfig />;
+      return <SecurityAck />;
     case 3:
-      return <GatewayConfig />;
+      return <RemoteSetup />;
     case 4:
-      return <ChannelConfiguration />;
+      return <ProviderConfig />;
     case 5:
-      return <ReviewConfig />;
+      return <GatewayConfig />;
     case 6:
-      return <InstallProgress />;
+      return <AdvancedConfig />;
     case 7:
+      return <ChannelConfiguration />;
+    case 8:
+      return <ReviewConfig />;
+    case 9:
+      // If remote credentials exist, use remote install; otherwise local install
+      return hasRemoteCredentials ? <RemoteInstallProgress /> : <InstallProgress />;
+    case 10:
       return <Complete onGoToDashboard={onGoToDashboard} />;
     default:
       return (

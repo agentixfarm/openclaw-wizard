@@ -45,20 +45,6 @@ export const gatewayConfigSchema = z
   );
 
 /**
- * Combined wizard schema
- */
-export const wizardSchema = z.object({
-  systemCheck: systemCheckSchema.optional(),
-  providerConfig: providerConfigSchema.optional(),
-  gatewayConfig: gatewayConfigSchema.optional(),
-  channelsConfig: channelsConfigSchema.optional(),
-  // Phase 5: SSH & Remote Setup
-  sshCredentials: sshCredentialsSchema.optional(),
-  securityAck: securityAckSchema.optional(),
-  advancedConfig: advancedConfigSchema.optional(),
-});
-
-/**
  * SSH Credentials step schema (Phase 5)
  */
 export const sshCredentialsSchema = z.object({
@@ -104,6 +90,20 @@ export const advancedConfigSchema = z.object({
     path: ['authUsername'], // Show error on username field
   }
 );
+
+/**
+ * Combined wizard schema
+ */
+export const wizardSchema = z.object({
+  systemCheck: systemCheckSchema.optional(),
+  providerConfig: providerConfigSchema.optional(),
+  gatewayConfig: gatewayConfigSchema.optional(),
+  channelsConfig: channelsConfigSchema.optional(),
+  // Phase 5: SSH & Remote Setup
+  sshCredentials: sshCredentialsSchema.optional(),
+  securityAck: securityAckSchema.optional(),
+  advancedConfig: advancedConfigSchema.optional(),
+});
 
 /**
  * Inferred TypeScript type for wizard form data
