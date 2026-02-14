@@ -4,6 +4,7 @@ import type { OpenClawDetection } from '../types/OpenClawDetection';
 import type { ApiKeyValidationRequest } from '../types/ApiKeyValidationRequest';
 import type { ApiKeyValidationResponse } from '../types/ApiKeyValidationResponse';
 import type { WizardConfig } from '../types/WizardConfig';
+import type { InstallRequest } from '../types/InstallRequest';
 
 /**
  * Generic API response structure
@@ -110,5 +111,12 @@ export const api = {
    */
   async saveConfig(config: WizardConfig): Promise<void> {
     await postAPI<void, WizardConfig>('/api/wizard/save-config', config);
+  },
+
+  /**
+   * Start installation (acknowledgment only, progress via WebSocket)
+   */
+  async startInstall(request: InstallRequest): Promise<void> {
+    await postAPI<void, InstallRequest>('/api/wizard/install', request);
   },
 };
