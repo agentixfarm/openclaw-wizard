@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 6 of 9 (Docker & Skills Management)
-Plan: 4 of 5 complete in current phase
-Status: Executing Phase 6
-Last activity: 2026-02-15 — Completed Phase 6 Plan 04
+Plan: 5 of 5 complete in current phase
+Status: Phase 6 Complete
+Last activity: 2026-02-15 — Completed Phase 6 Plan 05
 
-Progress: [██████░░░░] 56% (5/9 phases complete, 6 in progress)
+Progress: [███████░░░] 67% (6/9 phases complete)
 
 ## Performance Metrics
 
@@ -55,8 +55,9 @@ Progress: [██████░░░░] 56% (5/9 phases complete, 6 in progre
 | 06-02 | 682 | 3 | 18 |
 | 06-03 | 482 | 2 | 2 |
 | 06-04 | 420 | 3 | 4 |
+| 06-05 | 490 | 3 | 5 |
 
-*Phase 6 velocity: ~9 min per plan (562s average)*
+*Phase 6 velocity: ~9 min per plan (547s average)*
 
 ## Accumulated Context
 
@@ -118,6 +119,13 @@ Recent decisions affecting v1.1 work:
 - Container logs viewer is inline expandable section (not separate page)
 - deleteAPI helper added as reusable utility following fetchAPI/postAPI/putAPI pattern
 
+**Phase 6 Plan 5 Decisions:**
+- Skills browser integrated as dashboard tab (not standalone route) -- matches existing DashboardLayout navigation pattern
+- SkillDetail uses slide-over panel from right edge (full-screen on mobile) as specified in 06-03 UI spec
+- VT scan section shows 4 visual states: scanning, clean, suspicious, malicious, and not-yet-scanned with manual scan button
+- Malicious skills always blocked with disabled install button; suspicious shows amber confirmation dialog
+- Dark mode container wraps SkillsBrowser in dashboard since dashboard uses gray-50 background
+
 ### Pending Todos
 
 None yet.
@@ -134,6 +142,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-15T11:28:44Z
-Stopped at: Completed 06-04-PLAN.md — Docker sandbox frontend with useDockerSandbox hook, DockerSandbox wizard step, App.tsx integration
+Last session: 2026-02-15T11:30:09Z
+Stopped at: Completed 06-05-PLAN.md — Skills frontend with SkillsBrowser, SkillDetail, useSkills hook, dashboard integration. Phase 6 complete.
+Resume file: None — ready to continue with Phase 7
 Resume file: None — ready to continue with Phase 6 Plan 05
