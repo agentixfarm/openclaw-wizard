@@ -52,9 +52,10 @@ Progress: [██████░░░░] 56% (5/9 phases complete, 6 in progre
 | Plan | Duration (s) | Tasks | Files |
 |------|-------------|-------|-------|
 | 06-01 | 663 | 3 | 14 |
+| 06-02 | 682 | 3 | 18 |
 | 06-03 | 482 | 2 | 2 |
 
-*Phase 6 velocity: ~10 min per plan (573s average)*
+*Phase 6 velocity: ~10 min per plan (609s average)*
 
 ## Accumulated Context
 
@@ -96,6 +97,13 @@ Recent decisions affecting v1.1 work:
 - readonly_rootfs set to false because OpenClaw needs to write to filesystem inside container
 - User set to "node" (exists in node:20-alpine) rather than "nobody" from research example
 
+**Phase 6 Plan 2 Decisions:**
+- SkillsService created per-request (stateless) following DockerService pattern -- reqwest client creation is cheap
+- npm registry API used for ClawHub MVP (keywords:openclaw-skill search) -- dedicated registry deferred
+- VT scan_file wrapped in spawn_blocking (virustotal3 uses reqwest::blocking internally)
+- Graceful degradation: VT failure does NOT block installation -- logs warning and proceeds
+- Global AtomicU64 for VT rate limit tracking -- lightweight, lock-free
+
 **Phase 6 Plan 3 Decisions:**
 - Skills browser is a dashboard page (not wizard step) -- accessed from sidebar after setup
 - Docker sandbox adds third setup mode card alongside Local and Remote
@@ -119,6 +127,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-15T11:15:11Z
-Stopped at: Completed 06-03-PLAN.md — OpenAPI spec + UI screen specs for Docker sandbox and Skills browser
+Last session: 2026-02-15T11:18:23Z
+Stopped at: Completed 06-02-PLAN.md — Skills backend with ClawHub discovery, npm install, VT scanning
 Resume file: None — ready to continue with Phase 6 Plan 04
