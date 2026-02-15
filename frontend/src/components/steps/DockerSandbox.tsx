@@ -24,7 +24,7 @@ import type { ContainerInfo } from '../../types/ContainerInfo';
  * view running containers, and manage their lifecycle.
  */
 export function DockerSandbox() {
-  const { nextStep, prevStep } = useWizard();
+  const { nextStep } = useWizard();
   const {
     status,
     containers,

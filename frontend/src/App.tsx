@@ -15,6 +15,7 @@ import { SecurityAck } from './components/steps/SecurityAck';
 import { AdvancedConfig } from './components/steps/AdvancedConfig';
 import { RemoteInstallProgress } from './components/steps/RemoteInstallProgress';
 import { RemoteSetup } from './components/wizard/RemoteSetup';
+import { DockerSandbox } from './components/steps/DockerSandbox';
 import { DashboardLayout } from './components/dashboard/DashboardLayout';
 import type { WizardStep as WizardStepType } from './components/wizard/WizardProvider';
 import { api } from './api/client';
@@ -27,6 +28,7 @@ const WIZARD_STEPS: WizardStepType[] = [
   { id: 'detect', label: 'Detection', description: 'Find existing installation' },
   { id: 'security', label: 'Security', description: 'Acknowledge security risks' },
   { id: 'remote-setup', label: 'Remote Setup', description: 'Configure SSH connection' },
+  { id: 'docker-sandbox', label: 'Docker Sandbox', description: 'Run in isolated container' },
   { id: 'provider', label: 'AI Provider', description: 'Configure AI model' },
   { id: 'gateway', label: 'Gateway', description: 'Configure gateway settings' },
   { id: 'advanced', label: 'Advanced', description: 'Advanced configuration' },
@@ -50,19 +52,21 @@ function CurrentStepRenderer({ onGoToDashboard }: { onGoToDashboard?: () => void
     case 3:
       return <RemoteSetup />;
     case 4:
-      return <ProviderConfig />;
+      return <DockerSandbox />;
     case 5:
-      return <GatewayConfig />;
+      return <ProviderConfig />;
     case 6:
-      return <AdvancedConfig />;
+      return <GatewayConfig />;
     case 7:
-      return <ChannelConfiguration />;
+      return <AdvancedConfig />;
     case 8:
-      return <ReviewConfig />;
+      return <ChannelConfiguration />;
     case 9:
+      return <ReviewConfig />;
+    case 10:
       // If remote credentials exist, use remote install; otherwise local install
       return hasRemoteCredentials ? <RemoteInstallProgress /> : <InstallProgress />;
-    case 10:
+    case 11:
       return <Complete onGoToDashboard={onGoToDashboard} />;
     default:
       return (
