@@ -1,0 +1,1202 @@
+openapi: 3.1.0
+info:
+  title: "OpenClaw Wizard - Phase 6: Docker & Skills Management"
+  version: 0.6.0
+  description: |
+    Phase 6 endpoints for Docker sandbox container management and Skills
+    marketplace (ClawHub) integration with VirusTotal security scanning.
+
+    **Docker Sandbox:**
+    Create and manage isolated Docker containers for safe OpenClaw experimentation.
+    All containers are created with strict security enforcement:
+    - 512MB memory limit (no swap)
+    - 1 CPU core
+    - 100 PID limit (fork bomb prevention)
+    - All Linux capabilities dropped except NET_BIND_SERVICE
+    - no-new-privileges security option
+    - Non-root user ("node")
+    - No Docker socket mounting (prevents container escape)
+    - Container limit of 5 per wizard instance
+
+    **Skills Management:**
+    Browse, search, install, and uninstall OpenClaw skills from ClawHub registry.
+    All skill installations are scanned with VirusTotal before proceeding.
+    Malicious skills are blocked automatically. Suspicious skills require user
+    confirmation.
+
+    **Security model:**
+    - Docker containers: resource-limited, capability-dropped, non-root
+    - Skills: VirusTotal pre-scan, WASM sandboxing (future), capability declarations
+    - API keys: VirusTotal key optional (scanning disabled without it)
+
+servers:
+  - url: http://localhost:3030
+    description: Local development server
+
+tags:
+  - name: Docker
+    description: |
+      Docker sandbox container lifecycle management.
+      Requires Docker Desktop or Docker Engine installed on the host.
+      If Docker is not available, status endpoint returns available=false (not an error).
+  - name: Skills
+    description: |
+      ClawHub skills marketplace integration.
+      Browse, search, install, and uninstall OpenClaw skills.
+      VirusTotal scanning is performed before installation when configured.
+
+paths:
+  # ===== Docker Endpoints =====
+
+  /api/docker/status:
+    get:
+      summary: Check Docker availability and list containers
+      description: |
+        Returns Docker daemon availability, version information, and all
+        managed containers (filtered by `openclaw-wizard=true` label).
+
+        If Docker is not installed or the daemon is not running, returns
+        HTTP 200 with `available: false`. This is intentional — the user
+        may not have Docker installed, and that is not an error condition.
+      operationId: dockerStatus
+      tags:
+        - Docker
+      responses:
+        '200':
+          description: Docker status (always succeeds, even if Docker unavailable)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DockerStatusResponse'
+              examples:
+                available:
+                  summary: Docker is available with running containers
+                  value:
+                    available: true
+                    version: "27.5.1"
+                    containers:
+                      - id: "abc123def456"
+                        name: "openclaw-sandbox-1"
+                        image: "node:20-alpine"
+                        status: "Running"
+                        created_at: "2026-02-15T10:30:00Z"
+                        port: 49152
+                    error: null
+                not_available:
+                  summary: Docker not installed
+                  value:
+                    available: false
+                    version: null
+                    containers: []
+                    error: "Failed to check Docker status"
+
+  /api/docker/containers:
+    get:
+      summary: List managed sandbox containers
+      description: |
+        Lists all Docker containers managed by OpenClaw Wizard.
+        Containers are filtered by the `openclaw-wizard=true` label to
+        avoid listing unrelated containers on the host.
+      operationId: listContainers
+      tags:
+        - Docker
+      responses:
+        '200':
+          description: List of managed containers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContainerListResponse'
+              examples:
+                with_containers:
+                  summary: Two managed containers
+                  value:
+                    success: true
+                    data:
+                      - id: "abc123def456"
+                        name: "openclaw-sandbox-1"
+                        image: "node:20-alpine"
+                        status: "Running"
+                        created_at: "2026-02-15T10:30:00Z"
+                        port: 49152
+                      - id: "789ghi012jkl"
+                        name: "openclaw-sandbox-2"
+                        image: "node:20-alpine"
+                        status: "Stopped"
+                        created_at: "2026-02-15T09:00:00Z"
+                        port: null
+                    error: null
+        '503':
+          description: Docker daemon not available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/docker/create:
+    post:
+      summary: Create a new sandbox container
+      description: |
+        Creates a new Docker sandbox container with strict security enforcement.
+
+        **Security limits applied automatically:**
+        - Memory: 512MB (no swap)
+        - CPU: 1 core (1,000,000,000 nanocpus)
+        - PIDs: 100 max
+        - Capabilities: ALL dropped, only NET_BIND_SERVICE added
+        - Security: no-new-privileges
+        - User: "node" (non-root)
+        - Network: port 3000 mapped to random host port on 127.0.0.1
+
+        **Container limit:** Maximum 5 containers. Returns 429 if exceeded.
+
+        **Labels:** All containers are labeled with `openclaw-wizard=true` for
+        filtering. Container name is prefixed with `openclaw-sandbox-`.
+      operationId: createContainer
+      tags:
+        - Docker
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DockerCreateRequest'
+            examples:
+              default_image:
+                summary: Create with default node:20-alpine image
+                value:
+                  name: "my-sandbox"
+                  image: null
+              custom_image:
+                summary: Create with custom image
+                value:
+                  name: "test-sandbox"
+                  image: "node:22-alpine"
+      responses:
+        '200':
+          description: Container created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DockerCreateResponse'
+              examples:
+                success:
+                  summary: Container created
+                  value:
+                    success: true
+                    container_id: "abc123def456789..."
+                    port: 49152
+                    error: null
+        '429':
+          description: Container limit exceeded (max 5)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                limit:
+                  value:
+                    success: false
+                    data: null
+                    error: "Container limit exceeded (5/5). Remove a container before creating a new one."
+        '500':
+          description: Docker operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/docker/{id}/stop:
+    post:
+      summary: Stop a running container
+      description: |
+        Stops a running container with a 10-second graceful shutdown timeout.
+        If the container does not stop within 10 seconds, it is forcefully killed.
+      operationId: stopContainer
+      tags:
+        - Docker
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Container ID (full or abbreviated)
+          schema:
+            type: string
+            minLength: 6
+          examples:
+            full:
+              value: "abc123def456789012345678901234567890123456789012345678901234"
+            short:
+              value: "abc123def456"
+      responses:
+        '200':
+          description: Container stopped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyResponse'
+              examples:
+                success:
+                  value:
+                    success: true
+                    error: null
+        '404':
+          description: Container not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Docker operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/docker/{id}:
+    delete:
+      summary: Remove a container
+      description: |
+        Force removes a container. If the container is running, it will be
+        stopped first before removal.
+      operationId: removeContainer
+      tags:
+        - Docker
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Container ID (full or abbreviated)
+          schema:
+            type: string
+            minLength: 6
+      responses:
+        '200':
+          description: Container removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyResponse'
+        '404':
+          description: Container not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Docker operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/docker/{id}/logs:
+    get:
+      summary: Get container logs
+      description: |
+        Fetches the last N lines of stdout/stderr from a container.
+        Default: last 100 lines. Works for both running and stopped containers.
+      operationId: containerLogs
+      tags:
+        - Docker
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Container ID (full or abbreviated)
+          schema:
+            type: string
+            minLength: 6
+        - name: tail
+          in: query
+          required: false
+          description: Number of log lines to return (default 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10000
+            default: 100
+      responses:
+        '200':
+          description: Container logs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContainerLogsResponse'
+              examples:
+                logs:
+                  summary: Last 100 lines of logs
+                  value:
+                    container_id: "abc123def456"
+                    logs:
+                      - "Starting OpenClaw daemon..."
+                      - "Gateway listening on port 3000"
+                      - "Connected to Anthropic API"
+        '404':
+          description: Container not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ===== Skills Endpoints =====
+
+  /api/skills/search:
+    get:
+      summary: Search skills on ClawHub
+      description: |
+        Search the ClawHub skills registry with optional text query and
+        category filtering. Returns paginated skill metadata.
+
+        Results are sorted by relevance when a query is provided, or by
+        download count when browsing by category.
+      operationId: searchSkills
+      tags:
+        - Skills
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: Search query string (searches name, description, tags)
+          schema:
+            type: string
+            maxLength: 200
+          examples:
+            search:
+              value: "data processing"
+        - name: category
+          in: query
+          required: false
+          description: Filter by skill category
+          schema:
+            type: string
+            enum:
+              - DevTools
+              - DataProcessing
+              - ApiIntegration
+              - Automation
+              - Security
+              - Monitoring
+          examples:
+            category:
+              value: "DevTools"
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillSearchResponse'
+              examples:
+                results:
+                  summary: Skills matching search
+                  value:
+                    skills:
+                      - name: "data-transform"
+                        version: "1.2.0"
+                        description: "Transform and process data in multiple formats"
+                        author: "openclaw-community"
+                        category: "DataProcessing"
+                        tags: ["csv", "json", "xml", "transform"]
+                        capabilities: ["filesystem_read", "filesystem_write"]
+                        homepage: "https://github.com/openclaw/skills/data-transform"
+                        repository: "https://github.com/openclaw/skills"
+                        downloads: 15420
+                    total: 1
+                empty:
+                  summary: No results
+                  value:
+                    skills: []
+                    total: 0
+        '500':
+          description: Registry communication error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/skills/installed:
+    get:
+      summary: List installed skills
+      description: |
+        Returns all OpenClaw skills currently installed on the local system.
+        Reads from the OpenClaw skills directory.
+      operationId: listInstalledSkills
+      tags:
+        - Skills
+      responses:
+        '200':
+          description: List of installed skills
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InstalledSkill'
+                  error:
+                    type: string
+                    nullable: true
+              examples:
+                installed:
+                  summary: Two installed skills
+                  value:
+                    success: true
+                    data:
+                      - name: "web-scraper"
+                        version: "2.0.1"
+                        installed_at: "2026-02-14T08:00:00Z"
+                        path: "/home/user/.openclaw/skills/web-scraper"
+                        size_bytes: 245760
+                      - name: "data-transform"
+                        version: "1.2.0"
+                        installed_at: "2026-02-15T10:00:00Z"
+                        path: "/home/user/.openclaw/skills/data-transform"
+                        size_bytes: 122880
+                    error: null
+                empty:
+                  summary: No skills installed
+                  value:
+                    success: true
+                    data: []
+                    error: null
+        '500':
+          description: Failed to read skills directory
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/skills/install:
+    post:
+      summary: Install a skill from ClawHub
+      description: |
+        Downloads, scans (if VirusTotal configured), and installs a skill
+        from the ClawHub registry.
+
+        **Installation flow:**
+        1. Download skill package from ClawHub
+        2. Scan with VirusTotal (if VIRUSTOTAL_API_KEY is set)
+        3. Block if malicious (malicious_count > 0)
+        4. Warn if suspicious (suspicious_count >= 3) — requires force=true
+        5. Extract and install to OpenClaw skills directory
+
+        **Rate limiting:** VirusTotal public API allows 4 requests/minute.
+        Scan results are cached for 24 hours to avoid redundant scans.
+      operationId: installSkill
+      tags:
+        - Skills
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SkillInstallRequest'
+            examples:
+              install:
+                summary: Install a skill
+                value:
+                  name: "data-transform"
+                  version: "1.2.0"
+                  force: false
+              force_suspicious:
+                summary: Force install a suspicious skill
+                value:
+                  name: "risky-tool"
+                  version: "0.9.0"
+                  force: true
+      responses:
+        '200':
+          description: Skill installed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillInstallResponse'
+              examples:
+                success:
+                  summary: Clean skill installed
+                  value:
+                    success: true
+                    message: "Installed data-transform v1.2.0"
+                    scan_result:
+                      threat_level: "Clean"
+                      malicious_count: 0
+                      suspicious_count: 0
+                      total_scanners: 72
+                      scan_date: "2026-02-15T10:30:00Z"
+                      permalink: "https://www.virustotal.com/gui/file/abc123/detection"
+                    error: null
+        '400':
+          description: Invalid request (missing name or version)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Installation blocked — malicious skill detected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillInstallResponse'
+              examples:
+                blocked:
+                  summary: Malicious skill blocked
+                  value:
+                    success: false
+                    message: "Installation blocked: 5 antivirus engines detected malware"
+                    scan_result:
+                      threat_level: "Malicious"
+                      malicious_count: 5
+                      suspicious_count: 2
+                      total_scanners: 72
+                      scan_date: "2026-02-15T10:30:00Z"
+                      permalink: "https://www.virustotal.com/gui/file/def456/detection"
+                    error: "Malicious skill detected by VirusTotal"
+                suspicious:
+                  summary: Suspicious skill requires force flag
+                  value:
+                    success: false
+                    message: "Skill flagged as suspicious by 4 scanners. Use force=true to install."
+                    scan_result:
+                      threat_level: "Suspicious"
+                      malicious_count: 0
+                      suspicious_count: 4
+                      total_scanners: 72
+                      scan_date: "2026-02-15T10:30:00Z"
+                      permalink: "https://www.virustotal.com/gui/file/ghi789/detection"
+                    error: null
+        '429':
+          description: VirusTotal rate limit exceeded (4 req/min public API)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                rate_limit:
+                  value:
+                    success: false
+                    data: null
+                    error: "VirusTotal rate limit exceeded. Please wait 60 seconds and try again."
+        '500':
+          description: Installation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/skills/scan:
+    post:
+      summary: Scan a skill with VirusTotal
+      description: |
+        Triggers a VirusTotal scan for a skill package without installing it.
+        Returns scan results including threat level, detection counts, and
+        permalink to the full VirusTotal report.
+
+        **Requirements:** VIRUSTOTAL_API_KEY environment variable must be set.
+        Returns 503 if not configured.
+
+        **Rate limiting:** VirusTotal public API allows 4 requests/minute.
+        Cached results (within 24 hours) are returned immediately without
+        consuming a rate limit token.
+      operationId: scanSkill
+      tags:
+        - Skills
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanRequest'
+            examples:
+              scan:
+                summary: Scan a skill before installing
+                value:
+                  name: "web-scraper"
+                  version: "2.0.1"
+      responses:
+        '200':
+          description: Scan completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanResult'
+              examples:
+                clean:
+                  summary: No threats detected
+                  value:
+                    threat_level: "Clean"
+                    malicious_count: 0
+                    suspicious_count: 0
+                    total_scanners: 72
+                    scan_date: "2026-02-15T10:30:00Z"
+                    permalink: "https://www.virustotal.com/gui/file/abc123/detection"
+                suspicious:
+                  summary: Suspicious detections
+                  value:
+                    threat_level: "Suspicious"
+                    malicious_count: 0
+                    suspicious_count: 4
+                    total_scanners: 72
+                    scan_date: "2026-02-15T10:30:00Z"
+                    permalink: "https://www.virustotal.com/gui/file/def456/detection"
+        '429':
+          description: VirusTotal rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Scan failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: VirusTotal API key not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                not_configured:
+                  value:
+                    success: false
+                    data: null
+                    error: "VirusTotal scanning not configured. Set VIRUSTOTAL_API_KEY environment variable."
+
+  /api/skills/{name}:
+    get:
+      summary: Get skill details
+      description: |
+        Fetches detailed metadata for a specific skill from ClawHub,
+        including description, capabilities, tags, and cached scan results.
+      operationId: getSkillDetails
+      tags:
+        - Skills
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: Skill name (e.g., "data-transform")
+          schema:
+            type: string
+            pattern: '^[a-z0-9-]+$'
+      responses:
+        '200':
+          description: Skill details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillMetadata'
+              examples:
+                detail:
+                  summary: Full skill metadata
+                  value:
+                    name: "data-transform"
+                    version: "1.2.0"
+                    description: "Transform and process data in CSV, JSON, XML, and YAML formats. Supports streaming for large files."
+                    author: "openclaw-community"
+                    category: "DataProcessing"
+                    tags: ["csv", "json", "xml", "yaml", "transform", "streaming"]
+                    capabilities: ["filesystem_read", "filesystem_write"]
+                    homepage: "https://github.com/openclaw/skills/tree/main/data-transform"
+                    repository: "https://github.com/openclaw/skills"
+                    downloads: 15420
+        '404':
+          description: Skill not found on ClawHub
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Registry communication error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Uninstall a skill
+      description: |
+        Removes an installed skill from the local OpenClaw skills directory.
+        The skill is removed from disk immediately. This does not affect
+        the skill's availability on ClawHub for future reinstallation.
+      operationId: uninstallSkill
+      tags:
+        - Skills
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: Skill name to uninstall
+          schema:
+            type: string
+            pattern: '^[a-z0-9-]+$'
+      responses:
+        '200':
+          description: Skill uninstalled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyResponse'
+              examples:
+                success:
+                  value:
+                    success: true
+                    error: null
+        '404':
+          description: Skill not installed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                not_found:
+                  value:
+                    success: false
+                    data: null
+                    error: "Skill 'data-transform' is not installed"
+        '500':
+          description: Uninstall failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    # ===== Docker Schemas =====
+
+    ContainerStatus:
+      type: string
+      description: Current state of a Docker container
+      enum:
+        - Running
+        - Stopped
+        - Created
+        - Exited
+        - Error
+
+    ContainerInfo:
+      type: object
+      description: |
+        Information about a managed Docker container.
+        Maps to Rust type: backend/src/models/types.rs::ContainerInfo
+      required:
+        - id
+        - name
+        - image
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          description: Docker container ID (64 hex characters)
+        name:
+          type: string
+          description: Container name (prefixed with "openclaw-sandbox-")
+        image:
+          type: string
+          description: Docker image used (e.g., "node:20-alpine")
+        status:
+          $ref: '#/components/schemas/ContainerStatus'
+        created_at:
+          type: string
+          format: date-time
+          description: ISO 8601 creation timestamp
+        port:
+          type: integer
+          nullable: true
+          description: Host port mapped to container port 3000 (bound to 127.0.0.1)
+          minimum: 1024
+          maximum: 65535
+
+    DockerCreateRequest:
+      type: object
+      description: |
+        Request to create a new sandbox container.
+        Maps to Rust type: backend/src/models/types.rs::DockerCreateRequest
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Container name suffix (will be prefixed with "openclaw-sandbox-")
+          minLength: 1
+          maxLength: 64
+        image:
+          type: string
+          nullable: true
+          description: Docker image to use. Defaults to "node:20-alpine" if null.
+          examples:
+            - "node:20-alpine"
+            - "node:22-alpine"
+
+    DockerCreateResponse:
+      type: object
+      description: |
+        Response after container creation.
+        Maps to Rust type: backend/src/models/types.rs::DockerCreateResponse
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
+          description: Whether container was created successfully
+        container_id:
+          type: string
+          nullable: true
+          description: Full container ID (present on success)
+        port:
+          type: integer
+          nullable: true
+          description: Mapped host port (present on success)
+        error:
+          type: string
+          nullable: true
+          description: Error message (present on failure)
+
+    DockerStatusResponse:
+      type: object
+      description: |
+        Docker daemon status and managed containers.
+        Maps to Rust type: backend/src/models/types.rs::DockerStatusResponse
+      required:
+        - available
+        - containers
+      properties:
+        available:
+          type: boolean
+          description: Whether Docker daemon is accessible
+        version:
+          type: string
+          nullable: true
+          description: Docker daemon version (e.g., "27.5.1")
+        containers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContainerInfo'
+          description: All managed containers (filtered by openclaw-wizard label)
+        error:
+          type: string
+          nullable: true
+          description: Error message if Docker check failed
+
+    ContainerLogsResponse:
+      type: object
+      description: |
+        Container log output.
+        Maps to Rust type: backend/src/models/types.rs::ContainerLogsResponse
+      required:
+        - container_id
+        - logs
+      properties:
+        container_id:
+          type: string
+          description: Container ID the logs belong to
+        logs:
+          type: array
+          items:
+            type: string
+          description: Log lines (stdout + stderr, last N lines as requested)
+
+    ContainerListResponse:
+      type: object
+      description: Wrapped list of containers in ApiResponse format
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/ContainerInfo'
+        error:
+          type: string
+          nullable: true
+
+    # ===== Skills Schemas =====
+
+    SkillCategory:
+      type: string
+      description: |
+        Skill categorization for browsing and filtering.
+        Maps to Rust type: backend/src/models/types.rs::SkillCategory (to be added in 06-02)
+      enum:
+        - DevTools
+        - DataProcessing
+        - ApiIntegration
+        - Automation
+        - Security
+        - Monitoring
+
+    SkillMetadata:
+      type: object
+      description: |
+        Full metadata for a skill from the ClawHub registry.
+        Maps to Rust type: backend/src/models/types.rs::SkillMetadata (to be added in 06-02)
+      required:
+        - name
+        - version
+        - description
+        - author
+        - category
+        - tags
+        - capabilities
+        - downloads
+      properties:
+        name:
+          type: string
+          description: Unique skill identifier (lowercase, hyphens allowed)
+          pattern: '^[a-z0-9-]+$'
+          examples:
+            - "data-transform"
+            - "web-scraper"
+        version:
+          type: string
+          description: Semantic version string
+          pattern: '^\d+\.\d+\.\d+$'
+          examples:
+            - "1.2.0"
+            - "0.9.1"
+        description:
+          type: string
+          description: Human-readable skill description
+        author:
+          type: string
+          description: Skill author or organization
+        category:
+          $ref: '#/components/schemas/SkillCategory'
+        tags:
+          type: array
+          items:
+            type: string
+          description: Searchable tags/keywords
+        capabilities:
+          type: array
+          items:
+            type: string
+          description: |
+            Required permissions for the skill to function.
+            Common capabilities: network_access, filesystem_read, filesystem_write,
+            process_spawn, docker_access (should always be false for untrusted skills)
+        homepage:
+          type: string
+          nullable: true
+          format: uri
+          description: Skill homepage URL
+        repository:
+          type: string
+          nullable: true
+          format: uri
+          description: Source code repository URL
+        downloads:
+          type: integer
+          minimum: 0
+          description: Total download count from ClawHub
+
+    SkillSearchResponse:
+      type: object
+      description: |
+        Paginated search results from ClawHub.
+        Maps to Rust type: backend/src/models/types.rs::SkillSearchResponse (to be added in 06-02)
+      required:
+        - skills
+        - total
+      properties:
+        skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/SkillMetadata'
+          description: Matching skills
+        total:
+          type: integer
+          minimum: 0
+          description: Total number of matching skills (for pagination)
+
+    SkillInstallRequest:
+      type: object
+      description: |
+        Request to install a skill from ClawHub.
+        Maps to Rust type: backend/src/models/types.rs::SkillInstallRequest (to be added in 06-02)
+      required:
+        - name
+        - version
+      properties:
+        name:
+          type: string
+          description: Skill name to install
+          pattern: '^[a-z0-9-]+$'
+        version:
+          type: string
+          description: Specific version to install
+          pattern: '^\d+\.\d+\.\d+$'
+        force:
+          type: boolean
+          default: false
+          description: |
+            Force installation even if VirusTotal flags skill as suspicious.
+            Does NOT bypass malicious blocking — malicious skills are always blocked.
+
+    SkillInstallResponse:
+      type: object
+      description: |
+        Result of skill installation attempt.
+        Maps to Rust type: backend/src/models/types.rs::SkillInstallResponse (to be added in 06-02)
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          description: Whether skill was installed
+        message:
+          type: string
+          description: Human-readable result message
+        scan_result:
+          $ref: '#/components/schemas/ScanResult'
+          description: VirusTotal scan result (null if VT not configured)
+          nullable: true
+        error:
+          type: string
+          nullable: true
+          description: Error message if installation failed
+
+    InstalledSkill:
+      type: object
+      description: |
+        Information about a locally installed skill.
+        Maps to Rust type: backend/src/models/types.rs::InstalledSkill (to be added in 06-02)
+      required:
+        - name
+        - version
+        - installed_at
+        - path
+        - size_bytes
+      properties:
+        name:
+          type: string
+          description: Skill name
+        version:
+          type: string
+          description: Installed version
+        installed_at:
+          type: string
+          format: date-time
+          description: ISO 8601 installation timestamp
+        path:
+          type: string
+          description: Absolute path to installed skill directory
+        size_bytes:
+          type: integer
+          minimum: 0
+          description: Total size of installed skill in bytes
+
+    # ===== Security Scanning Schemas =====
+
+    ThreatLevel:
+      type: string
+      description: |
+        VirusTotal threat classification.
+        - Clean: No detections (malicious=0, suspicious<3)
+        - Suspicious: 3+ suspicious detections but no malicious
+        - Malicious: 1+ malicious detection — installation blocked
+      enum:
+        - Clean
+        - Suspicious
+        - Malicious
+
+    ScanResult:
+      type: object
+      description: |
+        VirusTotal scan result for a skill package.
+        Maps to Rust type: backend/src/models/types.rs::ScanResult (to be added in 06-02)
+      required:
+        - threat_level
+        - malicious_count
+        - suspicious_count
+        - total_scanners
+        - scan_date
+        - permalink
+      properties:
+        threat_level:
+          $ref: '#/components/schemas/ThreatLevel'
+        malicious_count:
+          type: integer
+          minimum: 0
+          description: Number of antivirus engines that flagged as malicious
+        suspicious_count:
+          type: integer
+          minimum: 0
+          description: Number of antivirus engines that flagged as suspicious
+        total_scanners:
+          type: integer
+          minimum: 0
+          description: Total number of antivirus engines that scanned the file
+        scan_date:
+          type: string
+          format: date-time
+          description: When the scan was performed (ISO 8601)
+        permalink:
+          type: string
+          format: uri
+          description: Link to full VirusTotal report
+
+    ScanRequest:
+      type: object
+      description: |
+        Request to scan a skill with VirusTotal.
+        Maps to Rust type: backend/src/models/types.rs::ScanRequest (to be added in 06-02)
+      required:
+        - name
+        - version
+      properties:
+        name:
+          type: string
+          description: Skill name to scan
+          pattern: '^[a-z0-9-]+$'
+        version:
+          type: string
+          description: Skill version to scan
+          pattern: '^\d+\.\d+\.\d+$'
+
+    # ===== Shared Schemas =====
+
+    EmptyResponse:
+      type: object
+      description: Generic success/error response with no data payload
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
+        error:
+          type: string
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      description: Standard error response format
+      required:
+        - success
+        - error
+      properties:
+        success:
+          type: boolean
+          const: false
+        data:
+          description: Always null for error responses
+          const: null
+        error:
+          type: string
+          description: Human-readable error message
