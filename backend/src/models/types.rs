@@ -208,6 +208,71 @@ pub struct DaemonActionResponse {
     pub message: String,
 }
 
+// ===== Docker Types =====
+
+/// Status of a Docker container
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub enum ContainerStatus {
+    Running,
+    Stopped,
+    Created,
+    Exited,
+    Error,
+}
+
+/// Information about a managed Docker container
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct ContainerInfo {
+    pub id: String,
+    pub name: String,
+    pub image: String,
+    pub status: ContainerStatus,
+    pub created_at: String,
+    pub port: Option<u16>,
+}
+
+/// Request to create a new Docker sandbox container
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct DockerCreateRequest {
+    pub name: String,
+    /// Docker image to use; defaults to "node:20-alpine" if None
+    pub image: Option<String>,
+}
+
+/// Response after creating a Docker container
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct DockerCreateResponse {
+    pub success: bool,
+    pub container_id: Option<String>,
+    pub port: Option<u16>,
+    pub error: Option<String>,
+}
+
+/// Docker daemon status and running containers
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct DockerStatusResponse {
+    pub available: bool,
+    pub version: Option<String>,
+    pub containers: Vec<ContainerInfo>,
+    pub error: Option<String>,
+}
+
+/// Container log output
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct ContainerLogsResponse {
+    pub container_id: String,
+    pub logs: Vec<String>,
+}
+
+// ===== Skills Types =====
+// Skills types will be added in Plan 02 (Skills backend)
+
 // ===== SSH & Remote Setup Types =====
 
 /// SSH connection status and details

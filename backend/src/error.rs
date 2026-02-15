@@ -32,6 +32,18 @@ pub enum AppError {
 
     #[error("Keyring error: {0}")]
     KeyringError(String),
+
+    #[error("Docker not available: {0}")]
+    DockerNotAvailable(String),
+
+    #[error("Docker operation failed: {0}")]
+    DockerOperationFailed(String),
+
+    #[error("Container not found: {0}")]
+    ContainerNotFound(String),
+
+    #[error("Container limit exceeded: {0}")]
+    ContainerLimitExceeded(String),
 }
 
 impl IntoResponse for AppError {
@@ -45,6 +57,10 @@ impl IntoResponse for AppError {
             AppError::SshCommandFailed(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
             AppError::SshCredentialsNotFound(msg) => (StatusCode::NOT_FOUND, msg),
             AppError::KeyringError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            AppError::DockerNotAvailable(msg) => (StatusCode::SERVICE_UNAVAILABLE, msg),
+            AppError::DockerOperationFailed(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            AppError::ContainerNotFound(msg) => (StatusCode::NOT_FOUND, msg),
+            AppError::ContainerLimitExceeded(msg) => (StatusCode::TOO_MANY_REQUESTS, msg),
         };
 
         let body = Json(ApiResponse::<()> {

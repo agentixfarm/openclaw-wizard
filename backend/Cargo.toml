@@ -20,6 +20,10 @@ reqwest = { version = "0.12", features = ["json"] }
 openssh = "0.11"
 keyring = { version = "3.6", features = ["apple-native", "linux-native"] }
 regex = "1.11"
+bollard = "0.20"
+tar = "0.4"
+flate2 = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
