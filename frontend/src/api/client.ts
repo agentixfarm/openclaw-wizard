@@ -11,6 +11,18 @@ import type { DaemonStatus } from '../types/DaemonStatus';
 import type { HealthSnapshot } from '../types/HealthSnapshot';
 import type { DaemonActionResponse } from '../types/DaemonActionResponse';
 import type { SshConnectionResponse } from '../types/SshConnectionResponse';
+import type { DockerStatusResponse } from '../types/DockerStatusResponse';
+import type { ContainerInfo } from '../types/ContainerInfo';
+import type { DockerCreateRequest } from '../types/DockerCreateRequest';
+import type { DockerCreateResponse } from '../types/DockerCreateResponse';
+import type { ContainerLogsResponse } from '../types/ContainerLogsResponse';
+import type { SkillMetadata } from '../types/SkillMetadata';
+import type { SkillSearchResponse } from '../types/SkillSearchResponse';
+import type { SkillInstallRequest } from '../types/SkillInstallRequest';
+import type { SkillInstallResponse } from '../types/SkillInstallResponse';
+import type { InstalledSkill } from '../types/InstalledSkill';
+import type { ScanResult } from '../types/ScanResult';
+import type { ScanRequest } from '../types/ScanRequest';
 
 /**
  * Generic API response structure
@@ -88,6 +100,19 @@ async function putAPI<T, B = any>(endpoint: string, body: B): Promise<T> {
   }
 
   return json.data as T;
+}
+
+/**
+ * Fetch wrapper for DELETE API calls
+ */
+async function deleteAPI(endpoint: string): Promise<void> {
+  const response = await fetch(endpoint, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
 }
 
 /**
@@ -251,5 +276,142 @@ export const api = {
     }
 
     return response.json() as Promise<SshConnectionResponse>;
+  },
+
+  // Docker API methods
+
+  /**
+   * Check Docker availability and get status
+   * Note: Response shape is DockerStatusResponse directly (not wrapped in ApiResponse)
+   */
+  async getDockerStatus(): Promise<DockerStatusResponse> {
+    const response = await fetch('/api/docker/status');
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json() as Promise<DockerStatusResponse>;
+  },
+
+  /**
+   * List managed Docker containers
+   */
+  async listContainers(): Promise<ContainerInfo[]> {
+    return fetchAPI<ContainerInfo[]>('/api/docker/containers');
+  },
+
+  /**
+   * Create a new Docker sandbox container
+   * Note: Response shape is DockerCreateResponse directly (not wrapped in ApiResponse)
+   */
+  async createSandbox(request: DockerCreateRequest): Promise<DockerCreateResponse> {
+    const response = await fetch('/api/docker/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json() as Promise<DockerCreateResponse>;
+  },
+
+  /**
+   * Stop a running Docker container
+   */
+  async stopContainer(id: string): Promise<void> {
+    await postAPI<void>(`/api/docker/${id}/stop`, {});
+  },
+
+  /**
+   * Remove a Docker container
+   */
+  async removeContainer(id: string): Promise<void> {
+    await deleteAPI(`/api/docker/${id}`);
+  },
+
+  /**
+   * Get logs from a Docker container
+   */
+  async getContainerLogs(id: string, tail?: number): Promise<ContainerLogsResponse> {
+    const params = tail ? `?tail=${tail}` : '';
+    return fetchAPI<ContainerLogsResponse>(`/api/docker/${id}/logs${params}`);
+  },
+
+  // Skills API methods
+
+  /**
+   * Search ClawHub skills with optional query and category filter
+   */
+  async searchSkills(query?: string, category?: string): Promise<SkillSearchResponse> {
+    const params = new URLSearchParams();
+    if (query) params.set('q', query);
+    if (category) params.set('category', category);
+    const qs = params.toString();
+    return fetchAPI<SkillSearchResponse>(`/api/skills/search${qs ? `?${qs}` : ''}`);
+  },
+
+  /**
+   * Get detailed metadata for a specific skill
+   */
+  async getSkillDetails(name: string): Promise<SkillMetadata> {
+    return fetchAPI<SkillMetadata>(`/api/skills/${encodeURIComponent(name)}`);
+  },
+
+  /**
+   * Install a skill from ClawHub (runs VT scan if configured)
+   */
+  async installSkill(request: SkillInstallRequest): Promise<SkillInstallResponse> {
+    const response = await fetch('/api/skills/install', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json() as Promise<SkillInstallResponse>;
+  },
+
+  /**
+   * Uninstall a locally installed skill
+   */
+  async uninstallSkill(name: string): Promise<void> {
+    await deleteAPI(`/api/skills/${encodeURIComponent(name)}`);
+  },
+
+  /**
+   * List all locally installed skills
+   */
+  async listInstalledSkills(): Promise<InstalledSkill[]> {
+    return fetchAPI<InstalledSkill[]>('/api/skills/installed');
+  },
+
+  /**
+   * Scan a skill with VirusTotal before installation
+   * Returns null if VT is not configured
+   */
+  async scanSkill(request: ScanRequest): Promise<ScanResult | null> {
+    const response = await fetch('/api/skills/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const json = await response.json();
+    // If VT not configured, data will be null
+    if (json.success && json.data === null) return null;
+    if (!json.success) throw new Error(json.error || 'Scan request failed');
+    return json.data as ScanResult;
   },
 };
