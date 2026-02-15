@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 6 of 9 (Docker & Skills Management)
-Plan: 3 of 5 complete in current phase
+Plan: 4 of 5 complete in current phase
 Status: Executing Phase 6
-Last activity: 2026-02-15 — Completed Phase 6 Plan 03
+Last activity: 2026-02-15 — Completed Phase 6 Plan 04
 
 Progress: [██████░░░░] 56% (5/9 phases complete, 6 in progress)
 
@@ -54,8 +54,9 @@ Progress: [██████░░░░] 56% (5/9 phases complete, 6 in progre
 | 06-01 | 663 | 3 | 14 |
 | 06-02 | 682 | 3 | 18 |
 | 06-03 | 482 | 2 | 2 |
+| 06-04 | 420 | 3 | 4 |
 
-*Phase 6 velocity: ~10 min per plan (609s average)*
+*Phase 6 velocity: ~9 min per plan (562s average)*
 
 ## Accumulated Context
 
@@ -111,6 +112,12 @@ Recent decisions affecting v1.1 work:
 - Malicious skills always blocked (no force override) -- force only bypasses suspicious
 - VT scan section shows 4 states: clean, suspicious, malicious, not-configured
 
+**Phase 6 Plan 4 Decisions:**
+- Direct fetch for getDockerStatus and createSandbox (not ApiResponse wrapper) -- consistent with testSshConnection pattern
+- Docker sandbox added as step 4 in wizard flow (after Remote Setup, before AI Provider)
+- Container logs viewer is inline expandable section (not separate page)
+- deleteAPI helper added as reusable utility following fetchAPI/postAPI/putAPI pattern
+
 ### Pending Todos
 
 None yet.
@@ -127,6 +134,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-15T11:18:23Z
-Stopped at: Completed 06-02-PLAN.md — Skills backend with ClawHub discovery, npm install, VT scanning
-Resume file: None — ready to continue with Phase 6 Plan 04
+Last session: 2026-02-15T11:28:44Z
+Stopped at: Completed 06-04-PLAN.md — Docker sandbox frontend with useDockerSandbox hook, DockerSandbox wizard step, App.tsx integration
+Resume file: None — ready to continue with Phase 6 Plan 05
