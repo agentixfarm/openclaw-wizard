@@ -1,17 +1,18 @@
 import { useState } from 'react';
-import { ArrowLeft, Activity, Settings, FileText } from 'lucide-react';
+import { ArrowLeft, Activity, Settings, FileText, Package } from 'lucide-react';
 import { useDaemonStatus } from '../../hooks/useDaemonStatus';
 import { useHealthMonitor } from '../../hooks/useHealthMonitor';
 import { StatusCard } from './StatusCard';
 import { DaemonControls } from './DaemonControls';
 import { HealthMonitor } from './HealthMonitor';
 import { ConfigEditor } from './ConfigEditor';
+import { SkillsBrowser } from '../steps/SkillsBrowser';
 
 interface DashboardLayoutProps {
   onBackToWizard: () => void;
 }
 
-type Tab = 'overview' | 'config' | 'logs';
+type Tab = 'overview' | 'config' | 'skills' | 'logs';
 
 /**
  * Main dashboard layout with tabbed navigation
@@ -112,6 +113,17 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
                 Config
               </button>
               <button
+                onClick={() => setActiveTab('skills')}
+                className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'skills'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                }`}
+              >
+                <Package className="w-4 h-4" />
+                Skills
+              </button>
+              <button
                 onClick={() => setActiveTab('logs')}
                 className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'logs'
@@ -129,6 +141,11 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
           <div className="p-6">
             {activeTab === 'overview' && <HealthMonitor health={health} daemonRunning={status?.running ?? false} onRefresh={refreshHealth} />}
             {activeTab === 'config' && <ConfigEditor />}
+            {activeTab === 'skills' && (
+              <div className="bg-zinc-900 rounded-lg p-6 -m-6">
+                <SkillsBrowser />
+              </div>
+            )}
             {activeTab === 'logs' && (
               <div className="text-center py-12">
                 <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
