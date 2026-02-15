@@ -42,6 +42,13 @@ async fn main() {
         .route("/api/docker/{id}/stop", post(routes::docker::stop_container))
         .route("/api/docker/{id}", axum::routing::delete(routes::docker::remove_container))
         .route("/api/docker/{id}/logs", get(routes::docker::container_logs))
+        // Skills routes (literal paths BEFORE {name} parameter route)
+        .route("/api/skills/search", get(routes::skills::search_skills))
+        .route("/api/skills/installed", get(routes::skills::list_installed))
+        .route("/api/skills/install", post(routes::skills::install_skill))
+        .route("/api/skills/scan", post(routes::skills::scan_skill))
+        .route("/api/skills/{name}", get(routes::skills::skill_details))
+        .route("/api/skills/{name}", axum::routing::delete(routes::skills::uninstall_skill))
         .fallback_service(ServeDir::new("static"));
 
     // Bind server to localhost:3030
