@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 6 of 9 (Docker & Skills Management)
-Plan: 1 of 5 complete in current phase
+Plan: 3 of 5 complete in current phase
 Status: Executing Phase 6
-Last activity: 2026-02-15 — Completed Phase 6 Plan 01
+Last activity: 2026-02-15 — Completed Phase 6 Plan 03
 
 Progress: [██████░░░░] 56% (5/9 phases complete, 6 in progress)
 
@@ -52,8 +52,9 @@ Progress: [██████░░░░] 56% (5/9 phases complete, 6 in progre
 | Plan | Duration (s) | Tasks | Files |
 |------|-------------|-------|-------|
 | 06-01 | 663 | 3 | 14 |
+| 06-03 | 482 | 2 | 2 |
 
-*Phase 6 velocity: ~11 min per plan (663s so far)*
+*Phase 6 velocity: ~10 min per plan (573s average)*
 
 ## Accumulated Context
 
@@ -95,6 +96,13 @@ Recent decisions affecting v1.1 work:
 - readonly_rootfs set to false because OpenClaw needs to write to filesystem inside container
 - User set to "node" (exists in node:20-alpine) rather than "nobody" from research example
 
+**Phase 6 Plan 3 Decisions:**
+- Skills browser is a dashboard page (not wizard step) -- accessed from sidebar after setup
+- Docker sandbox adds third setup mode card alongside Local and Remote
+- Skill detail uses slide-over panel (full-screen on mobile) rather than modal
+- Malicious skills always blocked (no force override) -- force only bypasses suspicious
+- VT scan section shows 4 states: clean, suspicious, malicious, not-configured
+
 ### Pending Todos
 
 None yet.
@@ -111,6 +119,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-15T11:03:01Z
-Stopped at: Completed 06-01-PLAN.md — Docker backend with bollard, security enforcement, REST routes
-Resume file: None — ready to continue with Phase 6 Plan 02
+Last session: 2026-02-15T11:15:11Z
+Stopped at: Completed 06-03-PLAN.md — OpenAPI spec + UI screen specs for Docker sandbox and Skills browser
+Resume file: None — ready to continue with Phase 6 Plan 04
