@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** Non-technical users successfully set up and manage OpenClaw without touching a terminal.
-**Current focus:** Phase 5 — SSH & Remote Setup
+**Current focus:** Phase 6 in progress — Docker & Skills Management
 
 ## Current Position
 
-Phase: 5 of 9 (SSH & Remote Setup)
-Plan: 2 of 4 complete in current phase
-Status: Executing
-Last activity: 2026-02-14 — Completed Phase 5 Plans 01 and 03
+Phase: 6 of 9 (Docker & Skills Management)
+Plan: 1 of 5 complete in current phase
+Status: Executing Phase 6
+Last activity: 2026-02-15 — Completed Phase 6 Plan 01
 
-Progress: [████░░░░░░] 46% (4/9 phases complete, 2/4 plans in Phase 5)
+Progress: [██████░░░░] 56% (5/9 phases complete, 6 in progress)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12 (all from v1.0)
+- Total plans completed: 13 (12 from v1.0 + 1 from v1.1)
 - Average duration: ~45 min per plan (estimated)
-- Total execution time: ~7.2 hours (v1.0 MVP shipped in 1 day)
+- Total execution time: ~7.4 hours
 
 **By Phase:**
 
@@ -42,8 +42,18 @@ Progress: [████░░░░░░] 46% (4/9 phases complete, 2/4 plans i
 |------|-------------|-------|-------|
 | 05-01 | 364 | 3 | 8 |
 | 05-03 | 254 | 3 | 4 |
+| 05-02 | 402 | 3 | 10 |
+| 05-04 | 346 | 3 | 7 |
 
-*Phase 5 velocity: ~5 min per plan (309s average)*
+*Phase 5 velocity: ~6 min per plan (342s average)*
+
+**Phase 6 Progress:**
+
+| Plan | Duration (s) | Tasks | Files |
+|------|-------------|-------|-------|
+| 06-01 | 663 | 3 | 14 |
+
+*Phase 6 velocity: ~11 min per plan (663s so far)*
 
 ## Accumulated Context
 
@@ -68,6 +78,23 @@ Recent decisions affecting v1.1 work:
 - Gateway bind mode defaults to localhost (safer option)
 - Tailscale integration is optional checkbox (not required for basic remote setup)
 
+**Phase 5 Plan 2 Decisions:**
+- Use heredoc for remote config writing to avoid shell escaping issues with JSON
+- Source nvm in each SSH command stage since non-interactive shells don't load .bashrc
+- Load WizardConfig from saved openclaw.json rather than passing full config over WebSocket
+
+**Phase 5 Plan 4 Decisions:**
+- Use raw WebSocket in useRemoteSetup (not WebSocketClient class) since remote install is one-shot operation
+- Map camelCase form field keyPath to snake_case key_path for backend API compatibility
+- Direct fetch for testSshConnection since backend returns SshConnectionResponse directly (not ApiResponse wrapper)
+
+**Phase 6 Plan 1 Decisions:**
+- DockerService created per-request (stateless) following existing route handler pattern -- bollard client connection is cheap
+- Docker-not-available returns 200 with available:false, not 500/503 -- user may not have Docker installed
+- Container port 3000 mapped to random host port on 127.0.0.1 (localhost only) for security
+- readonly_rootfs set to false because OpenClaw needs to write to filesystem inside container
+- User set to "node" (exists in node:20-alpine) rather than "nobody" from research example
+
 ### Pending Todos
 
 None yet.
@@ -84,6 +111,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-14T17:14:45Z
-Stopped at: Completed Phase 5 Plan 01 — SSH infrastructure with keyring integration
-Resume file: None — ready to continue with Phase 5 Plan 02 or 04
+Last session: 2026-02-15T11:03:01Z
+Stopped at: Completed 06-01-PLAN.md — Docker backend with bollard, security enforcement, REST routes
+Resume file: None — ready to continue with Phase 6 Plan 02
