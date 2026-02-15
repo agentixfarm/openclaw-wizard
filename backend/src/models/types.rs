@@ -271,7 +271,111 @@ pub struct ContainerLogsResponse {
 }
 
 // ===== Skills Types =====
-// Skills types will be added in Plan 02 (Skills backend)
+
+/// Category classification for skills
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub enum SkillCategory {
+    DevTools,
+    DataProcessing,
+    ApiIntegration,
+    Automation,
+    Security,
+    Monitoring,
+    Other,
+}
+
+/// Metadata about a skill from the ClawHub registry
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct SkillMetadata {
+    pub name: String,
+    pub version: String,
+    pub description: String,
+    pub author: String,
+    pub category: SkillCategory,
+    pub tags: Vec<String>,
+    pub capabilities: Vec<String>,
+    pub homepage: Option<String>,
+    pub repository: Option<String>,
+    pub downloads: Option<u32>,
+    pub verified: bool,
+}
+
+/// Request to search for skills
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct SkillSearchRequest {
+    pub query: Option<String>,
+    pub category: Option<SkillCategory>,
+}
+
+/// Response from a skill search
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct SkillSearchResponse {
+    pub skills: Vec<SkillMetadata>,
+    pub total: u32,
+}
+
+/// Request to install a skill
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct SkillInstallRequest {
+    pub name: String,
+    /// Version to install; None = latest
+    pub version: Option<String>,
+}
+
+/// Response after installing a skill
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct SkillInstallResponse {
+    pub success: bool,
+    pub name: String,
+    pub version: String,
+    pub error: Option<String>,
+    pub scan_result: Option<ScanResult>,
+}
+
+/// Information about a locally installed skill
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct InstalledSkill {
+    pub name: String,
+    pub version: String,
+    pub path: String,
+    pub size_bytes: Option<u64>,
+}
+
+/// Threat level determined by VirusTotal scan
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub enum ThreatLevel {
+    Clean,
+    Suspicious,
+    Malicious,
+}
+
+/// Result of a VirusTotal security scan
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct ScanResult {
+    pub threat_level: ThreatLevel,
+    pub malicious_count: u32,
+    pub suspicious_count: u32,
+    pub total_scanners: u32,
+    pub scan_date: String,
+    pub permalink: Option<String>,
+}
+
+/// Request to scan a skill package
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct ScanRequest {
+    pub skill_name: String,
+    pub version: String,
+}
 
 // ===== SSH & Remote Setup Types =====
 

@@ -44,6 +44,18 @@ pub enum AppError {
 
     #[error("Container limit exceeded: {0}")]
     ContainerLimitExceeded(String),
+
+    #[error("Skill not found: {0}")]
+    SkillNotFound(String),
+
+    #[error("Skill install failed: {0}")]
+    SkillInstallFailed(String),
+
+    #[error("VirusTotal error: {0}")]
+    VirusTotalError(String),
+
+    #[error("Skill blocked: {0}")]
+    SkillBlocked(String),
 }
 
 impl IntoResponse for AppError {
@@ -61,6 +73,10 @@ impl IntoResponse for AppError {
             AppError::DockerOperationFailed(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
             AppError::ContainerNotFound(msg) => (StatusCode::NOT_FOUND, msg),
             AppError::ContainerLimitExceeded(msg) => (StatusCode::TOO_MANY_REQUESTS, msg),
+            AppError::SkillNotFound(msg) => (StatusCode::NOT_FOUND, msg),
+            AppError::SkillInstallFailed(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            AppError::VirusTotalError(msg) => (StatusCode::BAD_GATEWAY, msg),
+            AppError::SkillBlocked(msg) => (StatusCode::FORBIDDEN, msg),
         };
 
         let body = Json(ApiResponse::<()> {
