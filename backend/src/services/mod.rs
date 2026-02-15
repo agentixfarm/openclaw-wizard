@@ -5,6 +5,7 @@ pub mod daemon;
 pub mod detection;
 pub mod docker;
 pub mod health;
+pub mod skills;
 pub mod installer;
 pub mod platform;
 pub mod remote;
@@ -12,4 +13,5 @@ pub mod ssh;
 
 pub use docker::DockerService;
 pub use remote::RemoteService;
+pub use skills::SkillsService;
 pub use ssh::SshService;
