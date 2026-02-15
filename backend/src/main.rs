@@ -35,6 +35,13 @@ async fn main() {
         // Remote setup routes
         .route("/api/remote/test-connection", post(routes::remote::test_ssh_connection))
         .route("/ws/remote/install", get(routes::remote::ws_remote_install))
+        // Docker routes
+        .route("/api/docker/status", get(routes::docker::docker_status))
+        .route("/api/docker/containers", get(routes::docker::list_containers))
+        .route("/api/docker/create", post(routes::docker::create_container))
+        .route("/api/docker/{id}/stop", post(routes::docker::stop_container))
+        .route("/api/docker/{id}", axum::routing::delete(routes::docker::remove_container))
+        .route("/api/docker/{id}/logs", get(routes::docker::container_logs))
         .fallback_service(ServeDir::new("static"));
 
     // Bind server to localhost:3030
