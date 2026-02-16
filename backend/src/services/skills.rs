@@ -443,8 +443,13 @@ impl SkillsService {
 
         let form = reqwest::multipart::Form::new().part(
             "file",
-            reqwest::multipart::Part::bytes(file_bytes)
-                .file_name(temp_path.file_name().unwrap_or_default().to_string_lossy().to_string()),
+            reqwest::multipart::Part::bytes(file_bytes).file_name(
+                temp_path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string(),
+            ),
         );
 
         let client = reqwest::Client::new();
@@ -457,7 +462,9 @@ impl SkillsService {
             .map_err(|e| AppError::VirusTotalError(format!("VT file upload failed: {}", e)))?
             .json()
             .await
-            .map_err(|e| AppError::VirusTotalError(format!("VT scan response parse failed: {}", e)))?;
+            .map_err(|e| {
+                AppError::VirusTotalError(format!("VT scan response parse failed: {}", e))
+            })?;
 
         // Clean up temp file
         let _ = tokio::fs::remove_file(&temp_path).await;
