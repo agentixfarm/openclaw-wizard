@@ -228,7 +228,7 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
                       rel="noopener noreferrer"
                       className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                         chatUrl
-                          ? 'bg-blue-600 text-white hover:bg-blue-700'
+                          ? 'bg-sky-400/60 text-white hover:bg-sky-500/70'
                           : 'bg-gray-300 dark:bg-zinc-600 text-gray-500 dark:text-zinc-400 cursor-not-allowed pointer-events-none'
                       }`}
                       onClick={(e) => {
@@ -258,7 +258,7 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
                       /* TODO: Implement WhatsApp QR code modal */
                       alert('WhatsApp QR code connection - Coming soon!');
                     }}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-sky-400/60 text-white text-sm font-medium rounded-md hover:bg-sky-500/70 transition-colors"
                   >
                     <MessageSquare className="w-4 h-4" />
                     Connect WhatsApp
