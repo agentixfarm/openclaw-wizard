@@ -1,5 +1,7 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { useWizardState } from '../../hooks/useWizardState';
+import { PROFILE_STEPS } from '../../config/profileSteps';
+import type { DeploymentProfile, PowerUserMode } from '../../config/profileSteps';
 import type { WizardFormData } from '../../schemas/wizardSchemas';
 
 export interface WizardStep {
@@ -14,26 +16,31 @@ interface WizardContextValue {
   completedSteps: Set<number>;
   totalSteps: number;
   steps: WizardStep[];
+  deploymentProfile: DeploymentProfile | null;
+  powerUserMode: PowerUserMode | null;
   nextStep: () => void;
   prevStep: () => void;
   goToStep: (step: number) => void;
   updateFormData: (stepKey: keyof WizardFormData, data: any) => void;
   resetWizard: () => void;
+  setProfile: (profile: DeploymentProfile, mode?: PowerUserMode) => void;
 }
 
 const WizardContext = createContext<WizardContextValue | null>(null);
 
 interface WizardProviderProps {
   children: ReactNode;
-  steps: WizardStep[];
 }
 
-export function WizardProvider({ children, steps }: WizardProviderProps) {
-  const wizardState = useWizardState(steps.length);
+export function WizardProvider({ children }: WizardProviderProps) {
+  const wizardState = useWizardState();
+
+  const steps = wizardState.deploymentProfile
+    ? PROFILE_STEPS[wizardState.deploymentProfile]
+    : [];
 
   const value: WizardContextValue = {
     ...wizardState,
-    totalSteps: steps.length,
     steps,
   };
 

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Activity, Settings, FileText, Package, Lightbulb } from 'lucide-react';
+import { AsciiLogo } from '../ui/AsciiLogo';
+import { ThemeToggle } from '../ui/ThemeToggle';
 import { useServiceManager } from '../../hooks/useServiceManager';
 import { useHealthMonitor } from '../../hooks/useHealthMonitor';
 import { useConfigAnalyzer } from '../../hooks/useConfigAnalyzer';
@@ -96,18 +98,21 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-zinc-900">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-white dark:bg-zinc-800 shadow-sm border-b dark:border-zinc-700">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">OpenClaw Dashboard</h1>
-          <button
-            onClick={onBackToWizard}
-            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Wizard
-          </button>
+          <AsciiLogo label="Dashboard" />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <button
+              onClick={onBackToWizard}
+              className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Wizard
+            </button>
+          </div>
         </div>
       </header>
 
@@ -171,15 +176,15 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
         </div>
 
         {/* Tab Navigation */}
-        <div className="bg-white rounded-lg shadow border border-gray-200">
-          <div className="border-b border-gray-200">
+        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow border border-gray-200 dark:border-zinc-700">
+          <div className="border-b border-gray-200 dark:border-zinc-700">
             <div className="flex gap-1 px-4">
               <button
                 onClick={() => setActiveTab('overview')}
                 className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'overview'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                    ? 'border-blue-600 text-blue-600 dark:border-sky-400 dark:text-sky-400'
+                    : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-300'
                 }`}
               >
                 <Activity className="w-4 h-4" />
@@ -189,8 +194,8 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
                 onClick={() => setActiveTab('config')}
                 className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'config'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                    ? 'border-blue-600 text-blue-600 dark:border-sky-400 dark:text-sky-400'
+                    : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-300'
                 }`}
               >
                 <Settings className="w-4 h-4" />
@@ -200,8 +205,8 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
                 onClick={() => setActiveTab('skills')}
                 className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'skills'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                    ? 'border-blue-600 text-blue-600 dark:border-sky-400 dark:text-sky-400'
+                    : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-300'
                 }`}
               >
                 <Package className="w-4 h-4" />
@@ -211,8 +216,8 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
                 onClick={() => setActiveTab('logs')}
                 className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'logs'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                    ? 'border-blue-600 text-blue-600 dark:border-sky-400 dark:text-sky-400'
+                    : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-300'
                 }`}
               >
                 <FileText className="w-4 h-4" />
@@ -222,8 +227,8 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
                 onClick={() => setActiveTab('intelligence')}
                 className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'intelligence'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                    ? 'border-blue-600 text-blue-600 dark:border-sky-400 dark:text-sky-400'
+                    : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-300'
                 }`}
               >
                 <Lightbulb className="w-4 h-4" />
@@ -249,13 +254,13 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
             {activeTab === 'intelligence' && (
               <div>
                 {/* Sub-tab navigation */}
-                <div className="flex gap-4 mb-6 border-b border-gray-200 pb-3">
+                <div className="flex gap-4 mb-6 border-b border-gray-200 dark:border-zinc-700 pb-3">
                   <button
                     onClick={() => setIntelSubTab('cost')}
                     className={`text-sm font-medium pb-1 border-b-2 transition-colors ${
                       intelSubTab === 'cost'
-                        ? 'border-blue-600 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                        ? 'border-blue-600 text-blue-600 dark:border-sky-400 dark:text-sky-400'
+                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white'
                     }`}
                   >
                     Cost Optimization
@@ -264,8 +269,8 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
                     onClick={() => setIntelSubTab('security')}
                     className={`text-sm font-medium pb-1 border-b-2 transition-colors ${
                       intelSubTab === 'security'
-                        ? 'border-blue-600 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                        ? 'border-blue-600 text-blue-600 dark:border-sky-400 dark:text-sky-400'
+                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white'
                     }`}
                   >
                     Security Audit

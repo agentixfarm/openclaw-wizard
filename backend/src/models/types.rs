@@ -665,3 +665,24 @@ pub struct RemoteInstallRequest {
     #[ts(type = "Record<string, any> | null")]
     pub config: Option<serde_json::Value>,
 }
+
+// ===== Rollback Types =====
+
+/// A single stage in the rollback process
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct RollbackStage {
+    pub name: String,
+    /// "pending", "success", "skipped", "failed"
+    pub status: String,
+    pub message: String,
+}
+
+/// Result of a rollback operation
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct RollbackResult {
+    pub success: bool,
+    pub stages: Vec<RollbackStage>,
+    pub error: Option<String>,
+}

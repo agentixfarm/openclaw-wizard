@@ -29,3 +29,5 @@ pub use config_analyzer::ConfigAnalyzer;
 pub use security_auditor::SecurityAuditor;
 pub mod multi_server;
 pub use multi_server::MultiServerOrchestrator;
+pub mod rollback;
+pub use rollback::RollbackService;

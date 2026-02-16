@@ -36,6 +36,7 @@ import type { ServerTarget } from '../types/ServerTarget';
 import type { ServerTestResult } from '../types/ServerTestResult';
 import type { ServerDeployResult } from '../types/ServerDeployResult';
 import type { ServerListResponse } from '../types/ServerListResponse';
+import type { RollbackResult } from '../types/RollbackResult';
 
 /**
  * Generic API response structure
@@ -568,5 +569,14 @@ export const api = {
    */
   async rollbackServer(id: string): Promise<ServerDeployResult> {
     return postAPI<ServerDeployResult>(`/api/multi-server/rollback/${id}`, {});
+  },
+
+  /**
+   * Rollback local installation (stop daemon, remove config, uninstall)
+   */
+  async rollbackInstallation(): Promise<RollbackResult> {
+    const response = await fetch('/api/wizard/rollback', { method: 'POST' });
+    if (!response.ok) throw new Error('Rollback failed');
+    return response.json();
   },
 };

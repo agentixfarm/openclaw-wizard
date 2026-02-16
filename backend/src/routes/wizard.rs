@@ -4,8 +4,9 @@
 
 use axum::Json;
 
-use crate::models::{ApiKeyValidationRequest, ApiKeyValidationResponse, ApiResponse, EmptyResponse, WizardConfig, InstallRequest};
-use crate::services::{config::ConfigWriter, platform::Platform};
+use crate::models::{ApiKeyValidationRequest, ApiKeyValidationResponse, ApiResponse, EmptyResponse, WizardConfig, InstallRequest, RollbackResult};
+use crate::services::{config::ConfigWriter, platform::Platform, RollbackService};
+use crate::error::AppError;
 
 /// Validate API key or setup token by testing against provider API
 pub async fn validate_api_key(Json(request): Json<ApiKeyValidationRequest>) -> Json<ApiResponse<ApiKeyValidationResponse>> {
@@ -212,4 +213,12 @@ pub async fn start_install(Json(_request): Json<InstallRequest>) -> Json<ApiResp
         }),
         error: None,
     })
+}
+
+/// Rollback installation by reversing stages: stop daemon, remove config, uninstall
+pub async fn rollback_installation() -> Result<Json<RollbackResult>, AppError> {
+    let result = RollbackService::rollback_local()
+        .await
+        .map_err(|e| AppError::InternalError(e.to_string()))?;
+    Ok(Json(result))
 }

@@ -134,12 +134,12 @@ export function ChannelConfiguration() {
           return (
             <div
               key={channel.platform}
-              className="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between"
+              className="bg-sky-400/10 border border-sky-400/30 rounded-lg p-4 flex items-center justify-between"
             >
               <div className="flex items-center gap-3">
                 <span className="text-2xl">{channel.emoji}</span>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-900">{channel.name}</h3>
+                  <h3 className="text-sm font-medium text-gray-100">{channel.name}</h3>
                   {isConfigured ? (
                     <div className="flex items-center gap-1 mt-1">
                       <svg
@@ -162,7 +162,7 @@ export function ChannelConfiguration() {
                       </span>
                     </div>
                   ) : (
-                    <span className="text-xs text-gray-500">Not configured</span>
+                    <span className="text-xs text-gray-400">Not configured</span>
                   )}
                 </div>
               </div>

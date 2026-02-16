@@ -3,12 +3,27 @@ mod models;
 mod routes;
 mod services;
 
-use axum::{routing::{get, post, put}, Router};
+use axum::{routing::{get, post}, Router};
+use clap::Parser;
 use tower_http::services::ServeDir;
 use tracing::info;
 
+#[derive(Parser)]
+#[command(name = "openclaw-wizard", about = "OpenClaw Setup Wizard")]
+struct Args {
+    /// Port to listen on
+    #[arg(short, long, default_value_t = 3030)]
+    port: u16,
+
+    /// Don't open browser automatically
+    #[arg(long)]
+    no_open: bool,
+}
+
 #[tokio::main]
 async fn main() {
+    let args = Args::parse();
+
     // Initialize tracing
     tracing_subscriber::fmt::init();
 
@@ -21,6 +36,7 @@ async fn main() {
         .route("/api/wizard/validate-key", post(routes::wizard::validate_api_key))
         .route("/api/wizard/save-config", post(routes::wizard::save_config))
         .route("/api/wizard/install", post(routes::wizard::start_install))
+        .route("/api/wizard/rollback", post(routes::wizard::rollback_installation))
         .route("/api/channels/validate", post(routes::channels::validate_channel_token))
         // Dashboard routes
         .route("/api/dashboard/daemon/status", get(routes::dashboard::daemon_status))
@@ -74,14 +90,25 @@ async fn main() {
         .route("/ws/multi-server/deploy", get(routes::multi_server::ws_multi_server_deploy))
         .fallback_service(ServeDir::new("static"));
 
-    // Bind server to localhost:3030
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3030")
+    let addr = format!("127.0.0.1:{}", args.port);
+    let url = format!("http://{}", addr);
+
+    let listener = tokio::net::TcpListener::bind(&addr)
         .await
-        .expect("Failed to bind to port 3030");
+        .unwrap_or_else(|_| panic!("Failed to bind to port {}", args.port));
 
-    info!("Server running at http://127.0.0.1:3030");
+    info!("🐾 OpenClaw Wizard running at {}", url);
 
-    // Start server
+    if !args.no_open {
+        let url_clone = url.clone();
+        tokio::task::spawn_blocking(move || {
+            println!("  Opening browser → {}", url_clone);
+            if let Err(e) = open::that(&url_clone) {
+                eprintln!("Could not open browser: {e}. Open {url_clone} manually.");
+            }
+        });
+    }
+
     axum::serve(listener, app)
         .await
         .expect("Server failed to start");

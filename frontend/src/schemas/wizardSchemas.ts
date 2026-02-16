@@ -103,6 +103,9 @@ export const wizardSchema = z.object({
   sshCredentials: sshCredentialsSchema.optional(),
   securityAck: securityAckSchema.optional(),
   advancedConfig: advancedConfigSchema.optional(),
+  // Profile-based wizard flow
+  deploymentProfile: z.enum(['local', 'remote', 'advanced']).optional(),
+  powerUserMode: z.enum(['multi-server', 'docker']).optional(),
 });
 
 /**

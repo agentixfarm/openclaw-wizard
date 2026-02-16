@@ -1,7 +1,14 @@
 [package]
 name = "openclaw-wizard"
-version = "0.1.0"
+version = "1.1.0"
 edition = "2024"
+description = "Visual setup wizard and management dashboard for OpenClaw"
+license = "MIT"
+repository = "https://github.com/openclaw/openclaw-wizard"
+homepage = "https://github.com/openclaw/openclaw-wizard"
+keywords = ["openclaw", "wizard", "setup", "dashboard"]
+categories = ["command-line-utilities", "web-programming"]
+readme = "../README.md"
 
 [dependencies]
 axum = { version = "0.8", features = ["ws"] }
@@ -25,7 +32,11 @@ tar = "0.4"
 flate2 = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 virustotal3 = "3.0"
+notify = "8.0"
+open = "5"
+clap = { version = "4", features = ["derive"] }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
 tempfile = "3"
+http-body-util = "0.1"

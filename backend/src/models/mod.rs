@@ -7,4 +7,5 @@ pub use types::{
     WizardConfig, WsMessage,
     RemoteInstallRequest, RemoteSetupProgress, SshConnectionRequest, SshConnectionResponse,
     SshConnection,
+    RollbackResult, RollbackStage,
 };

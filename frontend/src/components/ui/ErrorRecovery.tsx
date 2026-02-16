@@ -1,14 +1,73 @@
+import { CheckCircle, XCircle, MinusCircle, Loader2 } from 'lucide-react';
+import { useRollback } from '../../hooks/useRollback';
+import type { RollbackStage } from '../../types/RollbackStage';
+
 interface ErrorRecoveryProps {
   error: string;
   context: 'node-install' | 'openclaw-install' | 'config-write' | 'api-validation';
   onRetry: () => void;
   onSkip?: () => void;
+  onRollback?: () => void;
 }
 
 /**
- * Context-aware error recovery suggestions
+ * Provides guided error message based on common error patterns
  */
-export function ErrorRecovery({ error, context, onRetry, onSkip }: ErrorRecoveryProps) {
+function getGuidedMessage(error: string): string {
+  const lower = error.toLowerCase();
+  if (lower.includes('npm not found') || lower.includes('node not found') || lower.includes('command not found: npm')) {
+    return 'Node.js is not installed. Go back to System Check to install it.';
+  }
+  if (lower.includes('eacces') || lower.includes('permission denied')) {
+    return 'Permission denied. Try running with sudo or fix directory permissions.';
+  }
+  if (lower.includes('enospc') || lower.includes('no space')) {
+    return 'Disk full. Free up space and try again.';
+  }
+  if (lower.includes('etimedout') || lower.includes('timeout') || lower.includes('timed out')) {
+    return 'Network timeout. Check your internet connection and try again.';
+  }
+  return 'Installation failed. You can rollback and try again.';
+}
+
+function StageIcon({ status }: { status: string }) {
+  switch (status) {
+    case 'success':
+      return <CheckCircle className="w-4 h-4 text-green-500" />;
+    case 'failed':
+      return <XCircle className="w-4 h-4 text-red-500" />;
+    case 'skipped':
+      return <MinusCircle className="w-4 h-4 text-gray-400" />;
+    default:
+      return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />;
+  }
+}
+
+function RollbackStageList({ stages }: { stages: RollbackStage[] }) {
+  return (
+    <div className="mt-4 space-y-2">
+      <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200">Rollback Progress:</h4>
+      <ul className="space-y-1">
+        {stages.map((stage) => (
+          <li key={stage.name} className="flex items-center gap-2 text-sm">
+            <StageIcon status={stage.status} />
+            <span className="font-mono text-gray-700 dark:text-gray-300">{stage.name}</span>
+            {stage.message && (
+              <span className="text-gray-500 dark:text-gray-400">- {stage.message}</span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * Context-aware error recovery suggestions with rollback support
+ */
+export function ErrorRecovery({ error, context, onRetry, onSkip, onRollback }: ErrorRecoveryProps) {
+  const { loading: rollbackLoading, result: rollbackResult, rollback } = useRollback();
+
   const suggestions: Record<typeof context, string[]> = {
     'node-install': [
       'Check your internet connection',
@@ -35,40 +94,43 @@ export function ErrorRecovery({ error, context, onRetry, onSkip }: ErrorRecovery
     ],
   };
 
+  const guidedMessage = getGuidedMessage(error);
+
+  const handleRollback = async () => {
+    await rollback();
+    onRollback?.();
+  };
+
   return (
-    <div className="rounded-md bg-red-50 p-6 border-l-4 border-red-400">
+    <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-6 border border-red-200 dark:border-red-800">
       {/* Error icon and title */}
       <div className="flex">
         <div className="flex-shrink-0">
-          <svg
-            className="h-6 w-6 text-red-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
+          <XCircle className="h-6 w-6 text-red-400" />
         </div>
         <div className="ml-3 flex-1">
-          <h3 className="text-sm font-medium text-red-800">Installation Failed</h3>
-          <div className="mt-2 text-sm text-red-700">
-            <p className="font-mono bg-red-100 px-2 py-1 rounded">{error}</p>
+          <h3 className="text-sm font-medium text-red-800 dark:text-red-300">Installation Failed</h3>
+          <div className="mt-2 text-sm text-red-700 dark:text-red-400">
+            <p className="font-mono bg-red-100 dark:bg-red-900/40 px-2 py-1 rounded">{error}</p>
           </div>
+
+          {/* Guided message */}
+          <p className="mt-2 text-sm text-red-700 dark:text-red-400 font-medium">
+            {guidedMessage}
+          </p>
 
           {/* Recovery suggestions */}
           <div className="mt-4">
-            <h4 className="text-sm font-medium text-red-800">Suggestions:</h4>
-            <ul className="mt-2 list-disc list-inside space-y-1 text-sm text-red-700">
+            <h4 className="text-sm font-medium text-red-800 dark:text-red-300">Suggestions:</h4>
+            <ul className="mt-2 list-disc list-inside space-y-1 text-sm text-red-700 dark:text-red-400">
               {suggestions[context].map((suggestion, index) => (
                 <li key={index}>{suggestion}</li>
               ))}
             </ul>
           </div>
+
+          {/* Rollback result display */}
+          {rollbackResult && <RollbackStageList stages={rollbackResult.stages} />}
 
           {/* Action buttons */}
           <div className="mt-4 flex gap-3">
@@ -79,11 +141,28 @@ export function ErrorRecovery({ error, context, onRetry, onSkip }: ErrorRecovery
             >
               Retry
             </button>
+            {!rollbackResult && (
+              <button
+                type="button"
+                onClick={handleRollback}
+                disabled={rollbackLoading}
+                className="inline-flex items-center px-4 py-2 border border-red-300 dark:border-red-700 text-sm font-medium rounded-md text-red-700 dark:text-red-300 bg-white dark:bg-zinc-800 hover:bg-red-50 dark:hover:bg-red-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+              >
+                {rollbackLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Rolling back...
+                  </>
+                ) : (
+                  'Rollback Installation'
+                )}
+              </button>
+            )}
             {onSkip && (
               <button
                 type="button"
                 onClick={onSkip}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-zinc-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 Skip This Step
               </button>
