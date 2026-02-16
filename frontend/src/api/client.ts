@@ -23,6 +23,19 @@ import type { SkillInstallResponse } from '../types/SkillInstallResponse';
 import type { InstalledSkill } from '../types/InstalledSkill';
 import type { ScanResult } from '../types/ScanResult';
 import type { ScanRequest } from '../types/ScanRequest';
+import type { ServicesStatus } from '../types/ServicesStatus';
+import type { ServiceActionResponse } from '../types/ServiceActionResponse';
+import type { DoctorReport } from '../types/DoctorReport';
+import type { LogsResponse } from '../types/LogsResponse';
+import type { LogAnalysisRequest } from '../types/LogAnalysisRequest';
+import type { LogAnalysis } from '../types/LogAnalysis';
+import type { CostAnalysis } from '../types/CostAnalysis';
+import type { SecurityAudit } from '../types/SecurityAudit';
+import type { LlmPricingResponse } from '../types/LlmPricingResponse';
+import type { ServerTarget } from '../types/ServerTarget';
+import type { ServerTestResult } from '../types/ServerTestResult';
+import type { ServerDeployResult } from '../types/ServerDeployResult';
+import type { ServerListResponse } from '../types/ServerListResponse';
 
 /**
  * Generic API response structure
@@ -413,5 +426,147 @@ export const api = {
     if (json.success && json.data === null) return null;
     if (!json.success) throw new Error(json.error || 'Scan request failed');
     return json.data as ScanResult;
+  },
+
+  // Service Management API methods (Phase 7)
+
+  /**
+   * Get independent status for gateway and daemon with system metrics
+   */
+  async getServicesStatus(): Promise<ServicesStatus> {
+    return fetchAPI<ServicesStatus>('/api/services/status');
+  },
+
+  /**
+   * Start the OpenClaw gateway
+   */
+  async startGateway(): Promise<ServiceActionResponse> {
+    return postAPI<ServiceActionResponse>('/api/services/gateway/start', {});
+  },
+
+  /**
+   * Stop the OpenClaw gateway
+   */
+  async stopGateway(): Promise<ServiceActionResponse> {
+    return postAPI<ServiceActionResponse>('/api/services/gateway/stop', {});
+  },
+
+  /**
+   * Restart the OpenClaw gateway
+   */
+  async restartGateway(): Promise<ServiceActionResponse> {
+    return postAPI<ServiceActionResponse>('/api/services/gateway/restart', {});
+  },
+
+  /**
+   * Start the OpenClaw daemon (via service manager)
+   */
+  async startServiceDaemon(): Promise<ServiceActionResponse> {
+    return postAPI<ServiceActionResponse>('/api/services/daemon/start', {});
+  },
+
+  /**
+   * Stop the OpenClaw daemon (via service manager)
+   */
+  async stopServiceDaemon(): Promise<ServiceActionResponse> {
+    return postAPI<ServiceActionResponse>('/api/services/daemon/stop', {});
+  },
+
+  /**
+   * Restart the OpenClaw daemon (via service manager)
+   */
+  async restartServiceDaemon(): Promise<ServiceActionResponse> {
+    return postAPI<ServiceActionResponse>('/api/services/daemon/restart', {});
+  },
+
+  /**
+   * Run OpenClaw doctor diagnostics
+   */
+  async runDoctor(): Promise<DoctorReport> {
+    return fetchAPI<DoctorReport>('/api/services/doctor');
+  },
+
+  /**
+   * Get recent log lines with optional filtering
+   */
+  async getRecentLogs(
+    service: string,
+    lines?: number,
+    level?: string,
+    search?: string
+  ): Promise<LogsResponse> {
+    const params = new URLSearchParams({ service });
+    if (lines) params.set('lines', lines.toString());
+    if (level) params.set('level', level);
+    if (search) params.set('search', search);
+    return fetchAPI<LogsResponse>(`/api/logs/recent?${params.toString()}`);
+  },
+
+  /**
+   * Analyze log errors with AI
+   */
+  async analyzeLogs(request: LogAnalysisRequest): Promise<LogAnalysis> {
+    return postAPI<LogAnalysis, LogAnalysisRequest>('/api/logs/analyze', request);
+  },
+
+  // Intelligence API methods (Phase 8)
+
+  /**
+   * Analyze configuration for AI-powered cost optimization recommendations
+   */
+  async analyzeCost(): Promise<CostAnalysis> {
+    return postAPI<CostAnalysis>('/api/intelligence/cost-analysis', {});
+  },
+
+  /**
+   * Run security audit (8 rule-based checks, no AI needed)
+   */
+  async securityAudit(): Promise<SecurityAudit> {
+    return fetchAPI<SecurityAudit>('/api/intelligence/security-audit');
+  },
+
+  /**
+   * Get static LLM pricing data for all supported models
+   */
+  async getLlmPricing(): Promise<LlmPricingResponse> {
+    return fetchAPI<LlmPricingResponse>('/api/intelligence/pricing');
+  },
+
+  // Multi-server API methods (Phase 8)
+
+  /**
+   * Get list of configured server targets
+   */
+  async getServers(): Promise<ServerTarget[]> {
+    const response = await fetchAPI<ServerListResponse>('/api/multi-server/servers');
+    return response.servers;
+  },
+
+  /**
+   * Add a new server target
+   */
+  async addServer(server: ServerTarget): Promise<ServerTarget> {
+    return postAPI<ServerTarget, ServerTarget>('/api/multi-server/servers', server);
+  },
+
+  /**
+   * Remove a server target by ID
+   */
+  async removeServer(id: string): Promise<void> {
+    await deleteAPI(`/api/multi-server/servers/${id}`);
+  },
+
+  /**
+   * Test SSH connection to a server
+   */
+  async testServer(id: string): Promise<ServerTestResult> {
+    return postAPI<ServerTestResult>(`/api/multi-server/servers/${id}/test`, {});
+  },
+
+  /**
+   * Rollback a deployed server
+   */
+  async rollbackServer(id: string): Promise<ServerDeployResult> {
+    return postAPI<ServerDeployResult>(`/api/multi-server/rollback/${id}`, {});
   },
 };

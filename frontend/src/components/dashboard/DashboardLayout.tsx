@@ -1,40 +1,98 @@
-import { useState } from 'react';
-import { ArrowLeft, Activity, Settings, FileText, Package } from 'lucide-react';
-import { useDaemonStatus } from '../../hooks/useDaemonStatus';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, Activity, Settings, FileText, Package, Lightbulb } from 'lucide-react';
+import { useServiceManager } from '../../hooks/useServiceManager';
 import { useHealthMonitor } from '../../hooks/useHealthMonitor';
+import { useConfigAnalyzer } from '../../hooks/useConfigAnalyzer';
 import { StatusCard } from './StatusCard';
-import { DaemonControls } from './DaemonControls';
+import { ServiceControls } from './ServiceControls';
+import { DoctorDiagnostics } from './DoctorDiagnostics';
 import { HealthMonitor } from './HealthMonitor';
 import { ConfigEditor } from './ConfigEditor';
 import { SkillsBrowser } from '../steps/SkillsBrowser';
+import { LogViewer } from './LogViewer';
+import { CostOptimizer } from './CostOptimizer';
+import { SecurityAuditPanel } from './SecurityAuditPanel';
 
 interface DashboardLayoutProps {
   onBackToWizard: () => void;
 }
 
-type Tab = 'overview' | 'config' | 'skills' | 'logs';
+type Tab = 'overview' | 'config' | 'skills' | 'logs' | 'intelligence';
+type IntelSubTab = 'cost' | 'security';
 
 /**
  * Main dashboard layout with tabbed navigation
  */
 export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
-  const { status, actionLoading, start, stop, restart } = useDaemonStatus();
+  const [intelSubTab, setIntelSubTab] = useState<IntelSubTab>('cost');
+  const {
+    services,
+    actionLoading,
+    startGateway,
+    stopGateway,
+    restartGateway,
+    startDaemon,
+    stopDaemon,
+    restartDaemon,
+    doctorReport,
+    doctorLoading,
+    runDoctor,
+  } = useServiceManager();
   const { health, refresh: refreshHealth } = useHealthMonitor();
+  const {
+    costAnalysis,
+    securityAudit: securityAuditResult,
+    pricing,
+    costLoading,
+    auditLoading,
+    error: intelError,
+    analyzeCost,
+    runSecurityAudit,
+    loadPricing,
+  } = useConfigAnalyzer();
 
-  // Format uptime
-  const formatUptime = (seconds: bigint | null) => {
-    if (seconds === null) return 'N/A';
+  // Auto-load pricing when Cost sub-tab opens
+  useEffect(() => {
+    if (activeTab === 'intelligence' && intelSubTab === 'cost' && !pricing) {
+      loadPricing();
+    }
+  }, [activeTab, intelSubTab, pricing, loadPricing]);
+
+  // Auto-run security audit when Security sub-tab opens
+  useEffect(() => {
+    if (activeTab === 'intelligence' && intelSubTab === 'security' && !securityAuditResult) {
+      runSecurityAudit();
+    }
+  }, [activeTab, intelSubTab, securityAuditResult, runSecurityAudit]);
+
+  // Format uptime (accepts bigint from ts-rs u64)
+  const formatUptime = (seconds: bigint | number | null | undefined) => {
+    if (seconds == null) return 'N/A';
     const numSeconds = Number(seconds);
     const hours = Math.floor(numSeconds / 3600);
     const minutes = Math.floor((numSeconds % 3600) / 60);
     return `${hours}h ${minutes}m`;
   };
 
-  // Format memory
-  const formatMemory = (mb: bigint | null) => {
-    if (mb === null) return 'N/A';
-    return `${mb} MB`;
+  // Format memory (accepts bigint from ts-rs u64)
+  const formatMemory = (mb: bigint | number | null | undefined) => {
+    if (mb == null) return 'N/A';
+    return `${Number(mb)} MB`;
+  };
+
+  // Format CPU
+  const formatCpu = (pct: number | null | undefined) => {
+    if (pct == null) return 'N/A';
+    return `${pct.toFixed(1)}%`;
+  };
+
+  // CPU status color
+  const cpuStatus = (pct: number | null | undefined): 'ok' | 'warning' | 'error' | 'neutral' => {
+    if (pct == null) return 'neutral';
+    if (pct > 80) return 'error';
+    if (pct > 50) return 'warning';
+    return 'ok';
   };
 
   return (
@@ -55,34 +113,60 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
 
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* Gateway Status Card - Always visible */}
+        {/* Status Cards - Gateway, Daemon, System */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <StatusCard
-            title="Daemon Status"
-            value={status?.running ? 'Running' : 'Stopped'}
-            status={status?.running ? 'ok' : 'neutral'}
-            subtitle={status?.running ? `PID: ${status.pid || 'N/A'}` : 'Not running'}
+            title="Gateway"
+            value={services?.gateway?.running ? 'Running' : 'Stopped'}
+            status={services?.gateway?.running ? 'ok' : 'neutral'}
+            subtitle={
+              services?.gateway?.running
+                ? `PID: ${services.gateway.pid ?? 'N/A'} | ${formatUptime(services.gateway.uptime_seconds)} | ${formatMemory(services.gateway.memory_mb)}`
+                : 'Not running'
+            }
           />
           <StatusCard
-            title="Uptime"
-            value={formatUptime(status?.uptime_seconds ?? null)}
-            status="neutral"
+            title="Daemon"
+            value={services?.daemon?.running ? 'Running' : 'Stopped'}
+            status={services?.daemon?.running ? 'ok' : 'neutral'}
+            subtitle={
+              services?.daemon?.running
+                ? `PID: ${services.daemon.pid ?? 'N/A'} | ${formatUptime(services.daemon.uptime_seconds)} | ${formatMemory(services.daemon.memory_mb)}`
+                : 'Not running'
+            }
           />
           <StatusCard
-            title="Memory Usage"
-            value={formatMemory(status?.memory_mb ?? null)}
-            status="neutral"
+            title="System"
+            value={`CPU: ${formatCpu(services?.system_cpu_percent)}`}
+            status={cpuStatus(services?.system_cpu_percent)}
+            subtitle={
+              services
+                ? `Memory: ${Number(services.system_memory_used_mb ?? 0)} / ${Number(services.system_memory_total_mb ?? 0)} MB | Errors (24h): ${services.error_count_24h}`
+                : 'Loading...'
+            }
           />
         </div>
 
-        {/* Daemon Controls */}
+        {/* Service Controls */}
         <div className="mb-6">
-          <DaemonControls
-            running={status?.running ?? false}
-            onStart={start}
-            onStop={stop}
-            onRestart={restart}
-            loading={actionLoading}
+          <ServiceControls
+            services={services}
+            actionLoading={actionLoading}
+            onStartGateway={startGateway}
+            onStopGateway={stopGateway}
+            onRestartGateway={restartGateway}
+            onStartDaemon={startDaemon}
+            onStopDaemon={stopDaemon}
+            onRestartDaemon={restartDaemon}
+          />
+        </div>
+
+        {/* Doctor Diagnostics */}
+        <div className="mb-6">
+          <DoctorDiagnostics
+            report={doctorReport}
+            loading={doctorLoading}
+            onRun={runDoctor}
           />
         </div>
 
@@ -134,12 +218,23 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
                 <FileText className="w-4 h-4" />
                 Logs
               </button>
+              <button
+                onClick={() => setActiveTab('intelligence')}
+                className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'intelligence'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                }`}
+              >
+                <Lightbulb className="w-4 h-4" />
+                Intelligence
+              </button>
             </div>
           </div>
 
           {/* Tab Content */}
           <div className="p-6">
-            {activeTab === 'overview' && <HealthMonitor health={health} daemonRunning={status?.running ?? false} onRefresh={refreshHealth} />}
+            {activeTab === 'overview' && <HealthMonitor health={health} daemonRunning={services?.gateway?.running ?? false} onRefresh={refreshHealth} />}
             {activeTab === 'config' && <ConfigEditor />}
             {activeTab === 'skills' && (
               <div className="bg-zinc-900 rounded-lg p-6 -m-6">
@@ -147,9 +242,55 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
               </div>
             )}
             {activeTab === 'logs' && (
-              <div className="text-center py-12">
-                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">Log viewer coming soon</p>
+              <div className="bg-zinc-900 rounded-lg -m-6 p-0">
+                <LogViewer />
+              </div>
+            )}
+            {activeTab === 'intelligence' && (
+              <div>
+                {/* Sub-tab navigation */}
+                <div className="flex gap-4 mb-6 border-b border-gray-200 pb-3">
+                  <button
+                    onClick={() => setIntelSubTab('cost')}
+                    className={`text-sm font-medium pb-1 border-b-2 transition-colors ${
+                      intelSubTab === 'cost'
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Cost Optimization
+                  </button>
+                  <button
+                    onClick={() => setIntelSubTab('security')}
+                    className={`text-sm font-medium pb-1 border-b-2 transition-colors ${
+                      intelSubTab === 'security'
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Security Audit
+                  </button>
+                </div>
+
+                {/* Sub-tab content */}
+                {intelSubTab === 'cost' && (
+                  <CostOptimizer
+                    costAnalysis={costAnalysis}
+                    pricing={pricing}
+                    loading={costLoading}
+                    error={intelError}
+                    onAnalyze={analyzeCost}
+                    onLoadPricing={loadPricing}
+                  />
+                )}
+                {intelSubTab === 'security' && (
+                  <SecurityAuditPanel
+                    audit={securityAuditResult}
+                    loading={auditLoading}
+                    error={intelError}
+                    onAudit={runSecurityAudit}
+                  />
+                )}
               </div>
             )}
           </div>
