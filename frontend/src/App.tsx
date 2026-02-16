@@ -68,6 +68,8 @@ function App() {
     const checkConfig = async () => {
       try {
         await api.getConfig();
+        // Config exists - clear any wizard state and go to dashboard
+        localStorage.removeItem('openclaw-wizard-state');
         setMode('dashboard');
       } catch (error) {
         setMode('wizard');
@@ -77,7 +79,11 @@ function App() {
     checkConfig();
   }, []);
 
-  const goToDashboard = () => setMode('dashboard');
+  const goToDashboard = () => {
+    // Clear wizard state when transitioning to dashboard
+    localStorage.removeItem('openclaw-wizard-state');
+    setMode('dashboard');
+  };
   const goToWizard = () => setMode('wizard');
 
   if (mode === 'dashboard') {
