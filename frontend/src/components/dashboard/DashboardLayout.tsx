@@ -242,30 +242,7 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
                   </div>
                 </div>
 
-                {/* Channels Connected */}
-                <div className="bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Connected Channels</h3>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {/* TODO: Get actual channel status from backend */}
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-gray-400 text-sm rounded-full">
-                      No channels connected
-                    </span>
-                  </div>
-
-                  {/* Quick WhatsApp Connection */}
-                  <button
-                    onClick={() => {
-                      /* TODO: Implement WhatsApp QR code modal */
-                      alert('WhatsApp QR code connection - Coming soon!');
-                    }}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-sky-400/60 text-white text-sm font-medium rounded-md hover:bg-sky-500/70 transition-colors"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    Connect WhatsApp
-                  </button>
-                </div>
-
-                {/* Health Details */}
+                {/* Health Details (includes Channels section with WhatsApp button) */}
                 <HealthMonitor
                   health={health}
                   gatewayRunning={services?.gateway?.running ?? false}
