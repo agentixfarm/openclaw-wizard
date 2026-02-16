@@ -16,6 +16,7 @@ import { AdvancedConfig } from './components/steps/AdvancedConfig';
 import { RemoteInstallProgress } from './components/steps/RemoteInstallProgress';
 import { RemoteSetup } from './components/wizard/RemoteSetup';
 import { DockerSandbox } from './components/steps/DockerSandbox';
+import { MultiServerSetup } from './components/steps/MultiServerSetup';
 import { DashboardLayout } from './components/dashboard/DashboardLayout';
 import type { WizardStep as WizardStepType } from './components/wizard/WizardProvider';
 import { api } from './api/client';
@@ -28,6 +29,7 @@ const WIZARD_STEPS: WizardStepType[] = [
   { id: 'detect', label: 'Detection', description: 'Find existing installation' },
   { id: 'security', label: 'Security', description: 'Acknowledge security risks' },
   { id: 'remote-setup', label: 'Remote Setup', description: 'Configure SSH connection' },
+  { id: 'multi-server', label: 'Multi-Server', description: 'Deploy to multiple servers' },
   { id: 'docker-sandbox', label: 'Docker Sandbox', description: 'Run in isolated container' },
   { id: 'provider', label: 'AI Provider', description: 'Configure AI model' },
   { id: 'gateway', label: 'Gateway', description: 'Configure gateway settings' },
@@ -52,21 +54,23 @@ function CurrentStepRenderer({ onGoToDashboard }: { onGoToDashboard?: () => void
     case 3:
       return <RemoteSetup />;
     case 4:
-      return <DockerSandbox />;
+      return <MultiServerSetup />;
     case 5:
-      return <ProviderConfig />;
+      return <DockerSandbox />;
     case 6:
-      return <GatewayConfig />;
+      return <ProviderConfig />;
     case 7:
-      return <AdvancedConfig />;
+      return <GatewayConfig />;
     case 8:
-      return <ChannelConfiguration />;
+      return <AdvancedConfig />;
     case 9:
-      return <ReviewConfig />;
+      return <ChannelConfiguration />;
     case 10:
+      return <ReviewConfig />;
+    case 11:
       // If remote credentials exist, use remote install; otherwise local install
       return hasRemoteCredentials ? <RemoteInstallProgress /> : <InstallProgress />;
-    case 11:
+    case 12:
       return <Complete onGoToDashboard={onGoToDashboard} />;
     default:
       return (
