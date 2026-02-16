@@ -377,6 +377,232 @@ pub struct ScanRequest {
     pub version: String,
 }
 
+// ===== Service Management Types =====
+
+/// Status of an individual service process (gateway or daemon)
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct ServiceProcessStatus {
+    pub running: bool,
+    pub pid: Option<u32>,
+    pub uptime_seconds: Option<u64>,
+    pub memory_mb: Option<u64>,
+    pub cpu_percent: Option<f32>,
+}
+
+/// Combined status of all OpenClaw services with system metrics
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct ServicesStatus {
+    pub gateway: ServiceProcessStatus,
+    pub daemon: ServiceProcessStatus,
+    pub error_count_24h: u32,
+    pub system_cpu_percent: Option<f32>,
+    pub system_memory_total_mb: Option<u64>,
+    pub system_memory_used_mb: Option<u64>,
+}
+
+/// Response after performing a service action (start/stop/restart)
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct ServiceActionResponse {
+    pub success: bool,
+    pub service: String,
+    pub message: String,
+}
+
+/// Individual diagnostic check from openclaw doctor
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct DiagnosticCheck {
+    pub name: String,
+    /// "pass", "fail", or "warn"
+    pub status: String,
+    pub message: String,
+    pub fix_suggestion: Option<String>,
+}
+
+/// Full diagnostic report from openclaw doctor
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct DoctorReport {
+    pub checks: Vec<DiagnosticCheck>,
+    /// "healthy", "warning", or "critical"
+    pub overall_status: String,
+    pub timestamp: String,
+}
+
+/// A single log line with optional parsed metadata
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct LogLine {
+    pub content: String,
+    pub timestamp: Option<String>,
+    pub level: Option<String>,
+}
+
+/// Response containing recent log lines
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct LogsResponse {
+    pub service: String,
+    pub lines: Vec<LogLine>,
+    pub total: u32,
+}
+
+/// Request to analyze log context with AI
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct LogAnalysisRequest {
+    pub log_context: String,
+    pub service: String,
+}
+
+/// AI-generated analysis of log errors
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct LogAnalysis {
+    pub error_summary: String,
+    pub cause: String,
+    pub fix_steps: Vec<String>,
+    pub confidence: String,
+}
+
+// ===== Intelligence Types =====
+
+/// AI-powered cost optimization recommendation
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct CostRecommendation {
+    pub current_model: String,
+    pub recommended_model: String,
+    pub current_cost_monthly: f64,
+    pub recommended_cost_monthly: f64,
+    pub savings_monthly: f64,
+    pub savings_percent: f64,
+    pub use_case: String,
+    pub rationale: String,
+}
+
+/// Full cost analysis result with recommendations
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct CostAnalysis {
+    pub recommendations: Vec<CostRecommendation>,
+    pub total_current_monthly: f64,
+    pub total_recommended_monthly: f64,
+    pub total_savings_monthly: f64,
+    pub analysis_date: String,
+    pub summary: Option<String>,
+}
+
+/// Individual security finding from audit
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct SecurityFinding {
+    pub id: String,
+    /// "critical", "warning", or "info"
+    pub severity: String,
+    pub title: String,
+    pub description: String,
+    pub affected_field: String,
+    pub fix_suggestion: Option<String>,
+}
+
+/// Full security audit result
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct SecurityAudit {
+    pub findings: Vec<SecurityFinding>,
+    /// "secure", "warnings", or "critical"
+    pub overall_score: String,
+    pub critical_count: u32,
+    pub warning_count: u32,
+    pub audit_date: String,
+}
+
+/// LLM model pricing information
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct LlmModelPricing {
+    pub provider: String,
+    pub model: String,
+    pub input_per_million: f64,
+    pub output_per_million: f64,
+    pub context_window: Option<u32>,
+    pub notes: Option<String>,
+}
+
+/// LLM pricing response with all available models
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct LlmPricingResponse {
+    pub models: Vec<LlmModelPricing>,
+    pub last_updated: String,
+}
+
+// ===== Multi-Server Types =====
+
+/// A target server for multi-server deployment
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct ServerTarget {
+    pub id: String,
+    pub name: String,
+    pub host: String,
+    pub username: String,
+    pub key_path: String,
+    /// "pending", "connected", "failed", "deployed"
+    pub status: String,
+}
+
+/// Response containing list of server targets
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct ServerListResponse {
+    pub servers: Vec<ServerTarget>,
+}
+
+/// Result of testing a server connection
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct ServerTestResult {
+    pub server_id: String,
+    pub success: bool,
+    pub message: String,
+}
+
+/// Request to deploy to multiple servers
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct MultiServerDeployRequest {
+    pub server_ids: Vec<String>,
+}
+
+/// Progress update for a single server during multi-server deployment
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct MultiServerProgress {
+    pub server_id: String,
+    pub server_name: String,
+    pub stage: String,
+    pub status: String,
+    pub message: String,
+    pub error: Option<String>,
+    pub timestamp: u64,
+}
+
+/// Result of deploying to a single server
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../bindings/")]
+pub struct ServerDeployResult {
+    pub server_id: String,
+    pub server_name: String,
+    pub success: bool,
+    pub error: Option<String>,
+    pub completed_stages: Vec<String>,
+}
+
 // ===== SSH & Remote Setup Types =====
 
 /// SSH connection status and details

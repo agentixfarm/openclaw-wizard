@@ -56,6 +56,27 @@ pub enum AppError {
 
     #[error("Skill blocked: {0}")]
     SkillBlocked(String),
+
+    #[error("Doctor diagnostics failed: {0}")]
+    DoctorFailed(String),
+
+    #[error("Logs not found: {0}")]
+    LogsNotFound(String),
+
+    #[error("AI provider not configured: {0}")]
+    AiProviderNotConfigured(String),
+
+    #[error("Analysis rate limited: {0}")]
+    AnalysisRateLimited(String),
+
+    #[error("Config analysis failed: {0}")]
+    ConfigAnalysisFailed(String),
+
+    #[error("Server not found: {0}")]
+    ServerNotFound(String),
+
+    #[error("Deployment failed: {0}")]
+    DeploymentFailed(String),
 }
 
 impl IntoResponse for AppError {
@@ -77,6 +98,13 @@ impl IntoResponse for AppError {
             AppError::SkillInstallFailed(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
             AppError::VirusTotalError(msg) => (StatusCode::BAD_GATEWAY, msg),
             AppError::SkillBlocked(msg) => (StatusCode::FORBIDDEN, msg),
+            AppError::DoctorFailed(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            AppError::LogsNotFound(msg) => (StatusCode::NOT_FOUND, msg),
+            AppError::AiProviderNotConfigured(msg) => (StatusCode::SERVICE_UNAVAILABLE, msg),
+            AppError::AnalysisRateLimited(msg) => (StatusCode::TOO_MANY_REQUESTS, msg),
+            AppError::ConfigAnalysisFailed(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            AppError::ServerNotFound(msg) => (StatusCode::NOT_FOUND, msg),
+            AppError::DeploymentFailed(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
         };
 
         let body = Json(ApiResponse::<()> {
