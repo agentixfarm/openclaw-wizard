@@ -185,7 +185,6 @@ function getFriendlyName(technicalName: string): string {
  */
 function getSummaryText(report: DoctorReport): string {
   const total = report.checks.length;
-  const passed = report.checks.filter(c => c.status === 'pass').length;
   const warnings = report.checks.filter(c => c.status === 'warn').length;
   const failed = report.checks.filter(c => c.status === 'fail').length;
 
