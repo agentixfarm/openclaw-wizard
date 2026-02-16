@@ -49,6 +49,29 @@ async fn main() {
         .route("/api/skills/scan", post(routes::skills::scan_skill))
         .route("/api/skills/{name}", get(routes::skills::skill_details))
         .route("/api/skills/{name}", axum::routing::delete(routes::skills::uninstall_skill))
+        // Service management routes
+        .route("/api/services/status", get(routes::services::services_status))
+        .route("/api/services/gateway/start", post(routes::services::start_gateway))
+        .route("/api/services/gateway/stop", post(routes::services::stop_gateway))
+        .route("/api/services/gateway/restart", post(routes::services::restart_gateway))
+        .route("/api/services/daemon/start", post(routes::services::start_daemon))
+        .route("/api/services/daemon/stop", post(routes::services::stop_daemon))
+        .route("/api/services/daemon/restart", post(routes::services::restart_daemon))
+        .route("/api/services/doctor", get(routes::services::run_doctor))
+        // Log routes
+        .route("/api/logs/recent", get(routes::logs::get_recent_logs))
+        .route("/api/logs/analyze", post(routes::logs::analyze_logs))
+        .route("/ws/logs", get(routes::logs::ws_log_stream))
+        // Intelligence routes
+        .route("/api/intelligence/cost-analysis", post(routes::intelligence::analyze_cost))
+        .route("/api/intelligence/security-audit", get(routes::intelligence::security_audit))
+        .route("/api/intelligence/pricing", get(routes::intelligence::get_pricing))
+        // Multi-server routes
+        .route("/api/multi-server/servers", get(routes::multi_server::get_servers).post(routes::multi_server::add_server))
+        .route("/api/multi-server/servers/{id}", axum::routing::delete(routes::multi_server::remove_server))
+        .route("/api/multi-server/servers/{id}/test", post(routes::multi_server::test_server))
+        .route("/api/multi-server/rollback/{id}", post(routes::multi_server::rollback_server))
+        .route("/ws/multi-server/deploy", get(routes::multi_server::ws_multi_server_deploy))
         .fallback_service(ServeDir::new("static"));
 
     // Bind server to localhost:3030
