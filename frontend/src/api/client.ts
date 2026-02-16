@@ -241,36 +241,41 @@ export const api = {
   /**
    * Get current config (openclaw.json)
    */
-  async getConfig(): Promise<unknown> {
-    return fetchAPI<unknown>('/api/dashboard/config');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getConfig(): Promise<any> {
+    return fetchAPI<Record<string, unknown>>('/api/dashboard/config');
   },
 
   /**
    * Save dashboard config to openclaw.json
    */
-  async saveDashboardConfig(config: unknown): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async saveDashboardConfig(config: any): Promise<void> {
     await putAPI<void>('/api/dashboard/config', config);
   },
 
   /**
    * Import config from uploaded JSON
    */
-  async importConfig(config: unknown): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async importConfig(config: any): Promise<void> {
     await postAPI<void>('/api/dashboard/config/import', config);
   },
 
   /**
    * Export current config as JSON
    */
-  async exportConfig(): Promise<unknown> {
-    return fetchAPI<unknown>('/api/dashboard/config/export');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async exportConfig(): Promise<any> {
+    return fetchAPI<Record<string, unknown>>('/api/dashboard/config/export');
   },
 
   /**
    * Get version information (current and latest)
    */
-  async getVersionInfo(): Promise<unknown> {
-    return fetchAPI<unknown>('/api/dashboard/version');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getVersionInfo(): Promise<any> {
+    return fetchAPI<Record<string, unknown>>('/api/dashboard/version');
   },
 
   /**

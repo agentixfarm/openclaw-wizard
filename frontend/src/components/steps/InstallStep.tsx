@@ -59,8 +59,8 @@ export function InstallStep({ onGoToDashboard }: InstallStepProps) {
         return {
           platform: channel.platform,
           enabled: true,
-          bot_token: config?.botToken || null,
-          app_token: config?.appToken || null,
+          bot_token: (config?.botToken as string) || null,
+          app_token: (config?.appToken as string) || null,
           dm_policy: 'allowlist',
           allowed_users: [config?.userId, config?.phoneNumber].filter(Boolean) as string[],
         };

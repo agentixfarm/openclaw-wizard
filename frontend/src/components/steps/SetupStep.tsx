@@ -50,18 +50,20 @@ export function SetupStep() {
     // Pre-populate from existing config if user chose to
     if (detection?.installed && detection.config_found && useExisting === true && detection.existing_config) {
       try {
-        const existing = detection.existing_config as Record<string, Record<string, unknown>>;
-        if (existing.ai?.provider) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const existing = detection.existing_config as any;
+        if (existing?.ai?.provider) {
           updateFormData('providerConfig', {
-            provider: existing.ai.provider,
+            provider: String(existing.ai.provider),
+            authType: 'api-key',
             apiKey: '',
           });
         }
-        if (existing.gateway) {
+        if (existing?.gateway) {
           updateFormData('gatewayConfig', {
-            port: existing.gateway.port || 18789,
-            bind: existing.gateway.bind || 'loopback',
-            authMode: existing.gateway.auth?.mode || 'token',
+            port: Number(existing.gateway.port) || 18789,
+            bind: existing.gateway.bind === 'lan' ? 'lan' : 'loopback',
+            authMode: existing.gateway.auth?.mode === 'password' ? 'password' : 'token',
             authCredential: '',
           });
         }

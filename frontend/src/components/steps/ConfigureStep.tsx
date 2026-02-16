@@ -127,8 +127,8 @@ export function ConfigureStep() {
 
     // Always save form data so review screen shows what was entered
     const saveAllData = () => {
-      updateFormData('providerConfig', providerForm.getValues());
-      updateFormData('gatewayConfig', gatewayForm.getValues());
+      updateFormData('providerConfig', { authType: 'api-key', ...providerForm.getValues() });
+      updateFormData('gatewayConfig', { port: 18789, bind: 'loopback', authMode: 'token', ...gatewayForm.getValues() });
       updateFormData('advancedConfig', advancedForm.getValues());
     };
 
@@ -201,8 +201,8 @@ export function ConfigureStep() {
   };
 
   const handleSkipValidation = () => {
-    updateFormData('providerConfig', providerForm.getValues());
-    updateFormData('gatewayConfig', gatewayForm.getValues());
+    updateFormData('providerConfig', { authType: 'api-key', ...providerForm.getValues() });
+    updateFormData('gatewayConfig', { port: 18789, bind: 'loopback', authMode: 'token', ...gatewayForm.getValues() });
     updateFormData('advancedConfig', advancedForm.getValues());
     nextStep();
   };
