@@ -7,6 +7,8 @@ use tracing::{info, warn, error};
 
 use crate::models::{WsMessage, InstallRequest, InstallProgress};
 use crate::services::installer::InstallerService;
+use crate::services::uninstaller::UninstallService;
+use crate::services::upgrader::UpgradeService;
 
 /// WebSocket upgrade handler
 pub async fn ws_handler(ws: WebSocketUpgrade) -> Response {
@@ -73,6 +75,66 @@ async fn handle_socket(mut socket: WebSocket) {
                                 }
                                 Err(e) => {
                                     warn!("Failed to parse InstallRequest: {}", e);
+                                }
+                            }
+                        } else if ws_msg.msg_type == "start-uninstall" {
+                            info!("Starting uninstall");
+
+                            let (tx, mut rx) = mpsc::channel::<InstallProgress>(100);
+
+                            tokio::spawn(async move {
+                                if let Err(e) = UninstallService::run_uninstall(tx.clone()).await {
+                                    error!("Uninstall failed: {}", e);
+                                    let _ = tx.send(InstallProgress {
+                                        stage: "uninstall".into(),
+                                        status: "failed".into(),
+                                        message: "Uninstall failed".into(),
+                                        error: Some(e.to_string()),
+                                        ..Default::default()
+                                    }).await;
+                                }
+                            });
+
+                            while let Some(progress) = rx.recv().await {
+                                let response = WsMessage {
+                                    msg_type: "uninstall-progress".into(),
+                                    payload: serde_json::to_value(&progress).unwrap_or_default(),
+                                };
+
+                                let response_json = serde_json::to_string(&response).unwrap_or_default();
+                                if socket.send(Message::Text(response_json.into())).await.is_err() {
+                                    warn!("Failed to send uninstall progress update");
+                                    break;
+                                }
+                            }
+                        } else if ws_msg.msg_type == "start-upgrade" {
+                            info!("Starting upgrade");
+
+                            let (tx, mut rx) = mpsc::channel::<InstallProgress>(100);
+
+                            tokio::spawn(async move {
+                                if let Err(e) = UpgradeService::run_upgrade(tx.clone()).await {
+                                    error!("Upgrade failed: {}", e);
+                                    let _ = tx.send(InstallProgress {
+                                        stage: "upgrade".into(),
+                                        status: "failed".into(),
+                                        message: "Upgrade failed".into(),
+                                        error: Some(e.to_string()),
+                                        ..Default::default()
+                                    }).await;
+                                }
+                            });
+
+                            while let Some(progress) = rx.recv().await {
+                                let response = WsMessage {
+                                    msg_type: "upgrade-progress".into(),
+                                    payload: serde_json::to_value(&progress).unwrap_or_default(),
+                                };
+
+                                let response_json = serde_json::to_string(&response).unwrap_or_default();
+                                if socket.send(Message::Text(response_json.into())).await.is_err() {
+                                    warn!("Failed to send upgrade progress update");
+                                    break;
                                 }
                             }
                         } else {

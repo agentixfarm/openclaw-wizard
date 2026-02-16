@@ -31,3 +31,7 @@ pub mod multi_server;
 pub use multi_server::MultiServerOrchestrator;
 pub mod rollback;
 pub use rollback::RollbackService;
+pub mod uninstaller;
+pub use uninstaller::UninstallService;
+pub mod upgrader;
+pub use upgrader::UpgradeService;
