@@ -47,6 +47,8 @@ async fn main() {
         .route("/api/dashboard/config", get(routes::dashboard::get_config).put(routes::dashboard::save_config_handler))
         .route("/api/dashboard/config/import", post(routes::dashboard::import_config))
         .route("/api/dashboard/config/export", get(routes::dashboard::export_config))
+        .route("/api/dashboard/chat-url", get(routes::dashboard::get_chat_url))
+        .route("/api/dashboard/version", get(routes::dashboard::get_version_info))
         .route("/ws", get(routes::ws::ws_handler))
         // Remote setup routes
         .route("/api/remote/test-connection", post(routes::remote::test_ssh_connection))

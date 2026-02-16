@@ -1,16 +1,42 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { ArrowUpCircle } from 'lucide-react';
+import { ArrowUpCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { StreamingOutput } from '../ui/StreamingOutput';
+import { api } from '../../api/client';
 
-type UpgradeStatus = 'idle' | 'upgrading' | 'completed' | 'failed';
+type UpgradeStatus = 'idle' | 'checking' | 'update-available' | 'upgrading' | 'completed' | 'failed';
+
+interface VersionInfo {
+  current_version: string;
+  latest_version: string;
+  update_available: boolean;
+}
 
 export function UpgradePanel() {
   const [status, setStatus] = useState<UpgradeStatus>('idle');
+  const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
   const [output, setOutput] = useState<string[]>([]);
   const [currentMessage, setCurrentMessage] = useState('');
   const [progressPct, setProgressPct] = useState<number | undefined>();
   const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+
+  const checkForUpdates = useCallback(async () => {
+    setStatus('checking');
+    setError(null);
+
+    try {
+      const response = await api.getVersionInfo();
+      if (response.success && response.data) {
+        setVersionInfo(response.data);
+        setStatus(response.data.update_available ? 'update-available' : 'idle');
+      } else {
+        throw new Error(response.error || 'Failed to check version');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to check for updates');
+      setStatus('idle');
+    }
+  }, []);
 
   const startUpgrade = useCallback(() => {
     setStatus('upgrading');
@@ -111,23 +137,104 @@ export function UpgradePanel() {
     );
   }
 
+  // Show check for updates state
+  if (status === 'checking') {
+    return (
+      <div className="mb-6 border-t border-gray-200 dark:border-zinc-700 pt-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
+          <ArrowUpCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          Checking for Updates
+        </h3>
+        <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Checking for latest version...
+        </div>
+      </div>
+    );
+  }
+
+  // Show update available state
+  if (status === 'update-available' && versionInfo) {
+    return (
+      <div className="mb-6 border-t border-gray-200 dark:border-zinc-700 pt-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
+          <ArrowUpCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+          Update Available!
+        </h3>
+
+        <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-4">
+          <div className="grid grid-cols-2 gap-4 mb-3">
+            <div>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Current Version</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                {versionInfo.current_version}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Latest Version</p>
+              <p className="text-lg font-semibold text-green-600 dark:text-green-400 flex items-center gap-1">
+                {versionInfo.latest_version}
+                <ArrowUpCircle className="w-4 h-4" />
+              </p>
+            </div>
+          </div>
+
+          <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
+            A new version is available. Upgrading will briefly stop the gateway,
+            update the package, run diagnostics, and restart.
+          </p>
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={startUpgrade}
+            className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
+          >
+            Upgrade Now
+          </button>
+          <button
+            onClick={() => setStatus('idle')}
+            className="px-4 py-2 bg-gray-200 dark:bg-zinc-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-md hover:bg-gray-300 dark:hover:bg-zinc-600 transition-colors"
+          >
+            Not Now
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Default idle state
   return (
     <div className="mb-6 border-t border-gray-200 dark:border-zinc-700 pt-6">
       <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
         <ArrowUpCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-        Upgrade OpenClaw
+        Updates
       </h3>
-      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        Update OpenClaw to the latest version. This will briefly stop the gateway,
-        update the package, run diagnostics, and restart.
-      </p>
+
+      {versionInfo && !versionInfo.update_available && (
+        <div className="mb-3 text-sm text-green-600 dark:text-green-400 flex items-center gap-2">
+          <ArrowUpCircle className="w-4 h-4" />
+          You're running the latest version ({versionInfo.current_version})
+        </div>
+      )}
+
+      {!versionInfo && (
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Check if a newer version of OpenClaw is available.
+        </p>
+      )}
 
       <button
-        onClick={startUpgrade}
-        className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+        onClick={checkForUpdates}
+        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
       >
-        Upgrade Now
+        <RefreshCw className="w-4 h-4" />
+        Check for Updates
       </button>
+
+      {error && (
+        <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>
+      )}
     </div>
   );
 }

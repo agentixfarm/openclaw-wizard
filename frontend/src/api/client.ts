@@ -267,6 +267,13 @@ export const api = {
   },
 
   /**
+   * Get version information (current and latest)
+   */
+  async getVersionInfo(): Promise<any> {
+    return fetchAPI<any>('/api/dashboard/version');
+  },
+
+  /**
    * Test SSH connection to a remote VPS
    * Note: Response shape is SshConnectionResponse (not wrapped in ApiResponse)
    */

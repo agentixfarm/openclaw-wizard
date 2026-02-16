@@ -232,3 +232,45 @@ pub async fn get_chat_url() -> Json<ApiResponse<serde_json::Value>> {
         error: None,
     })
 }
+
+/// GET /api/dashboard/version
+///
+/// Returns current and latest available OpenClaw version information.
+pub async fn get_version_info() -> Json<ApiResponse<serde_json::Value>> {
+    use crate::services::command::SafeCommand;
+
+    // Get current version
+    let current_version = match SafeCommand::run("openclaw", &["--version"]) {
+        Ok(output) if output.exit_code == 0 => {
+            // Parse version from output like "openclaw 2026.2.15"
+            output.stdout
+                .split_whitespace()
+                .last()
+                .unwrap_or("unknown")
+                .to_string()
+        }
+        _ => "unknown".to_string(),
+    };
+
+    // Check for latest version using npm view
+    let latest_version = match SafeCommand::run("npm", &["view", "openclaw", "version"]) {
+        Ok(output) if output.exit_code == 0 => {
+            output.stdout.trim().to_string()
+        }
+        _ => current_version.clone(), // Fallback to current if check fails
+    };
+
+    let update_available = current_version != "unknown"
+        && latest_version != current_version
+        && latest_version != "";
+
+    Json(ApiResponse {
+        success: true,
+        data: Some(serde_json::json!({
+            "current_version": current_version,
+            "latest_version": latest_version,
+            "update_available": update_available,
+        })),
+        error: None,
+    })
+}
