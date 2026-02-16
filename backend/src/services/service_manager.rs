@@ -1,25 +1,25 @@
-//! # Service Manager - Independent Gateway/Daemon Lifecycle Control
+//! # Service Manager - Gateway Lifecycle Control
 //!
-//! Phase 7 replacement for DaemonService with finer-grained control.
-//! Provides independent status, start, stop, restart for gateway and daemon.
-//! Enhanced health metrics include system CPU, memory, and 24-hour error count.
+//! Manages the OpenClaw gateway service (launchd/systemd/schtasks).
+//! Note: `openclaw daemon` is a legacy alias for `openclaw gateway` -
+//! there is only one service to manage.
 
 use crate::models::types::{ServiceActionResponse, ServiceProcessStatus, ServicesStatus};
 use crate::services::command::SafeCommand;
 use anyhow::{Context, Result};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 use sysinfo::{ProcessesToUpdate, System};
 
 pub struct ServiceManager;
 
 impl ServiceManager {
-    /// Get independent status for gateway and daemon with system metrics
+    /// Get status for gateway with system metrics.
+    /// The `daemon` field mirrors gateway (they are the same service).
     pub fn services_status() -> ServicesStatus {
         let mut sys = System::new_all();
         sys.refresh_processes(ProcessesToUpdate::All, true);
 
-        let gateway = Self::find_service_process(&sys, "gateway");
-        let daemon = Self::find_service_process(&sys, "daemon");
+        let gateway = Self::find_gateway_process(&sys);
         let error_count_24h = Self::count_recent_errors();
 
         let system_cpu_percent = Some(sys.global_cpu_usage());
@@ -27,8 +27,8 @@ impl ServiceManager {
         let system_memory_used_mb = Some(sys.used_memory() / 1024 / 1024);
 
         ServicesStatus {
-            gateway,
-            daemon,
+            gateway: gateway.clone(),
+            daemon: gateway, // daemon is a legacy alias for gateway
             error_count_24h,
             system_cpu_percent,
             system_memory_total_mb,
@@ -36,8 +36,51 @@ impl ServiceManager {
         }
     }
 
-    /// Start the OpenClaw gateway
+    /// Check if the gateway service is installed (launchd/systemd/schtasks)
+    fn is_gateway_installed() -> bool {
+        match SafeCommand::run("openclaw", &["gateway", "status"]) {
+            Ok(output) => {
+                let combined = format!("{}{}", output.stdout, output.stderr);
+                // If the status output says "not installed", it's not installed
+                !combined.contains("Service not installed")
+                    && !combined.contains("not loaded")
+                    && !combined.contains("Service unit not found")
+            }
+            Err(_) => false,
+        }
+    }
+
+    /// Install the gateway service (launchd/systemd/schtasks)
+    fn install_gateway() -> Result<()> {
+        let output = SafeCommand::run("openclaw", &["gateway", "install"])
+            .context("Failed to execute 'openclaw gateway install'")?;
+
+        if output.exit_code != 0 {
+            anyhow::bail!(
+                "Failed to install gateway service (exit code {}): {}",
+                output.exit_code,
+                output.stderr.trim()
+            );
+        }
+        Ok(())
+    }
+
+    /// Start the OpenClaw gateway. Auto-installs the service if not installed.
     pub fn start_gateway() -> Result<ServiceActionResponse> {
+        // Auto-install if service is not installed
+        if !Self::is_gateway_installed()
+            && let Err(e) = Self::install_gateway()
+        {
+            return Ok(ServiceActionResponse {
+                success: false,
+                service: "gateway".to_string(),
+                message: format!(
+                    "Gateway service not installed and auto-install failed: {}",
+                    e
+                ),
+            });
+        }
+
         let output = SafeCommand::run("openclaw", &["gateway", "start"])
             .context("Failed to execute 'openclaw gateway start'")?;
 
@@ -84,29 +127,17 @@ impl ServiceManager {
         })
     }
 
-    /// Restart the OpenClaw gateway (stop, wait 2s, start)
+    /// Restart the OpenClaw gateway
     pub fn restart_gateway() -> Result<ServiceActionResponse> {
-        // Stop first (ignore error if already stopped)
-        let _ = Self::stop_gateway();
-
-        // Wait for graceful shutdown
-        std::thread::sleep(Duration::from_secs(2));
-
-        // Start again
-        Self::start_gateway().context("Failed to start gateway after stop")
-    }
-
-    /// Start the OpenClaw daemon
-    pub fn start_daemon() -> Result<ServiceActionResponse> {
-        let output = SafeCommand::run("openclaw", &["onboard", "--install-daemon"])
-            .context("Failed to execute 'openclaw onboard --install-daemon'")?;
+        let output = SafeCommand::run("openclaw", &["gateway", "restart"])
+            .context("Failed to execute 'openclaw gateway restart'")?;
 
         if output.exit_code != 0 {
             return Ok(ServiceActionResponse {
                 success: false,
-                service: "daemon".to_string(),
+                service: "gateway".to_string(),
                 message: format!(
-                    "Failed to start daemon (exit code {}): {}",
+                    "Failed to restart gateway (exit code {}): {}",
                     output.exit_code,
                     output.stderr.trim()
                 ),
@@ -115,59 +146,26 @@ impl ServiceManager {
 
         Ok(ServiceActionResponse {
             success: true,
-            service: "daemon".to_string(),
-            message: "Daemon started successfully".to_string(),
+            service: "gateway".to_string(),
+            message: "Gateway restarted successfully".to_string(),
         })
     }
 
-    /// Stop the OpenClaw daemon by finding its PID and sending SIGTERM
+    /// Daemon methods are aliases for gateway (daemon is a legacy alias)
+    pub fn start_daemon() -> Result<ServiceActionResponse> {
+        Self::start_gateway()
+    }
+
     pub fn stop_daemon() -> Result<ServiceActionResponse> {
-        let mut sys = System::new_all();
-        sys.refresh_processes(ProcessesToUpdate::All, true);
-
-        let status = Self::find_service_process(&sys, "daemon");
-        if !status.running {
-            return Ok(ServiceActionResponse {
-                success: true,
-                service: "daemon".to_string(),
-                message: "Daemon is not running".to_string(),
-            });
-        }
-
-        if let Some(pid) = status.pid {
-            // Send SIGTERM to the daemon process
-            let pid = sysinfo::Pid::from_u32(pid);
-            if let Some(process) = sys.process(pid) {
-                process.kill();
-                return Ok(ServiceActionResponse {
-                    success: true,
-                    service: "daemon".to_string(),
-                    message: "Daemon stopped successfully".to_string(),
-                });
-            }
-        }
-
-        Ok(ServiceActionResponse {
-            success: false,
-            service: "daemon".to_string(),
-            message: "Could not find daemon process to stop".to_string(),
-        })
+        Self::stop_gateway()
     }
 
-    /// Restart the OpenClaw daemon (stop, wait 2s, start)
     pub fn restart_daemon() -> Result<ServiceActionResponse> {
-        // Stop first (ignore error if already stopped)
-        let _ = Self::stop_daemon();
-
-        // Wait for graceful shutdown
-        std::thread::sleep(Duration::from_secs(2));
-
-        // Start again
-        Self::start_daemon().context("Failed to start daemon after stop")
+        Self::restart_gateway()
     }
 
-    /// Find a service process by type ("gateway" or "daemon")
-    fn find_service_process(sys: &System, service_type: &str) -> ServiceProcessStatus {
+    /// Find the gateway process by looking for node processes running openclaw gateway
+    fn find_gateway_process(sys: &System) -> ServiceProcessStatus {
         let current_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -181,20 +179,19 @@ impl ServiceManager {
                 .map(|s| s.to_string_lossy().to_lowercase())
                 .collect();
 
-            // Match node processes running openclaw
             if name.contains("node") {
                 let cmd_str = cmd_args.join(" ");
 
-                let is_match = match service_type {
-                    "gateway" => {
-                        cmd_str.contains("gateway")
-                            || (cmd_str.contains("openclaw") && !cmd_str.contains("daemon"))
-                    }
-                    "daemon" => cmd_str.contains("daemon"),
-                    _ => false,
-                };
+                // Skip wizard processes
+                if cmd_str.contains("vite")
+                    || cmd_str.contains("openclaw-wizard")
+                    || cmd_str.contains("vitest")
+                {
+                    continue;
+                }
 
-                if is_match {
+                // Must contain "gateway" to match the gateway process
+                if cmd_str.contains("gateway") {
                     let start_time = process.start_time();
                     let uptime_seconds = if start_time > 0 {
                         Some(current_time.saturating_sub(start_time))
@@ -223,13 +220,6 @@ impl ServiceManager {
     }
 
     /// Count ERROR lines in log files from the last 24 hours
-    ///
-    /// Checks common log paths:
-    /// - ~/.openclaw/logs/
-    /// - /var/log/openclaw/
-    /// - ~/Library/Logs/openclaw/ (macOS)
-    ///
-    /// Returns 0 if no logs found.
     fn count_recent_errors() -> u32 {
         let home = match std::env::var("HOME") {
             Ok(h) => h,
@@ -240,6 +230,7 @@ impl ServiceManager {
             format!("{}/.openclaw/logs", home),
             "/var/log/openclaw".to_string(),
             format!("{}/Library/Logs/openclaw", home),
+            "/tmp/openclaw".to_string(),
         ];
 
         let twenty_four_hours_ago = SystemTime::now()
@@ -263,20 +254,18 @@ impl ServiceManager {
                         continue;
                     }
 
-                    // Check if file was modified in the last 24 hours
-                    if let Ok(metadata) = path.metadata() {
-                        if let Ok(modified) = metadata.modified() {
-                            let modified_secs = modified
-                                .duration_since(UNIX_EPOCH)
-                                .unwrap_or_default()
-                                .as_secs();
-                            if modified_secs < twenty_four_hours_ago {
-                                continue;
-                            }
+                    if let Ok(metadata) = path.metadata()
+                        && let Ok(modified) = metadata.modified()
+                    {
+                        let modified_secs = modified
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs();
+                        if modified_secs < twenty_four_hours_ago {
+                            continue;
                         }
                     }
 
-                    // Count ERROR lines in this file
                     if let Ok(content) = std::fs::read_to_string(&path) {
                         let count = content
                             .lines()
@@ -302,20 +291,15 @@ mod tests {
     fn test_services_status_returns_valid_struct() {
         let status = ServiceManager::services_status();
 
-        // Both services should return valid status (even if not running)
         if status.gateway.running {
             assert!(status.gateway.pid.is_some());
         } else {
             assert!(status.gateway.pid.is_none());
         }
 
-        if status.daemon.running {
-            assert!(status.daemon.pid.is_some());
-        } else {
-            assert!(status.daemon.pid.is_none());
-        }
+        // daemon mirrors gateway
+        assert_eq!(status.gateway.running, status.daemon.running);
 
-        // System metrics should always be populated
         assert!(status.system_cpu_percent.is_some());
         assert!(status.system_memory_total_mb.is_some());
         assert!(status.system_memory_used_mb.is_some());
@@ -323,31 +307,16 @@ mod tests {
 
     #[test]
     fn test_count_recent_errors_returns_zero_when_no_logs() {
-        // In test environment, there should be no openclaw logs
         let count = ServiceManager::count_recent_errors();
-        // Should not panic; value depends on environment
         assert!(count < u32::MAX);
     }
 
     #[test]
-    fn test_find_service_process_gateway() {
+    fn test_find_gateway_process() {
         let mut sys = System::new_all();
         sys.refresh_processes(ProcessesToUpdate::All, true);
 
-        let status = ServiceManager::find_service_process(&sys, "gateway");
-        // Should return valid struct regardless
-        if !status.running {
-            assert!(status.pid.is_none());
-            assert!(status.uptime_seconds.is_none());
-        }
-    }
-
-    #[test]
-    fn test_find_service_process_daemon() {
-        let mut sys = System::new_all();
-        sys.refresh_processes(ProcessesToUpdate::All, true);
-
-        let status = ServiceManager::find_service_process(&sys, "daemon");
+        let status = ServiceManager::find_gateway_process(&sys);
         if !status.running {
             assert!(status.pid.is_none());
             assert!(status.uptime_seconds.is_none());

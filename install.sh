@@ -61,11 +61,8 @@ echo "  Downloading ${BINARY_NAME}.tar.gz..."
 mkdir -p "$INSTALL_DIR"
 curl -fsSL "$DOWNLOAD_URL" -o "/tmp/openclaw-wizard.tar.gz"
 tar xzf "/tmp/openclaw-wizard.tar.gz" -C "$INSTALL_DIR"
-chmod +x "${INSTALL_DIR}/${BINARY_NAME}"
+chmod +x "${INSTALL_DIR}/openclaw-wizard"
 rm -f "/tmp/openclaw-wizard.tar.gz"
-
-# Create a symlink for easy access
-ln -sf "${INSTALL_DIR}/${BINARY_NAME}" "${INSTALL_DIR}/openclaw-wizard"
 
 echo ""
 echo "  Installed to: ${INSTALL_DIR}/openclaw-wizard"
@@ -76,4 +73,5 @@ echo "  Starting OpenClaw Wizard on http://localhost:${PORT}"
 echo "  Press Ctrl+C to stop"
 echo ""
 
-exec "${INSTALL_DIR}/openclaw-wizard" --port "$PORT"
+cd "$INSTALL_DIR"
+exec ./openclaw-wizard --port "$PORT"

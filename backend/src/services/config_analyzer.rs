@@ -4,7 +4,7 @@
 //! their OpenClaw configuration for cost optimization opportunities.
 //! Reuses LogAnalyzer's secret redaction before sending config to external APIs.
 
-use crate::models::types::{CostAnalysis, CostRecommendation, LlmModelPricing, LlmPricingResponse};
+use crate::models::types::{CostAnalysis, LlmModelPricing, LlmPricingResponse};
 use crate::services::config::ConfigWriter;
 use crate::services::log_analyzer::LogAnalyzer;
 use anyhow::Result;
@@ -27,14 +27,31 @@ pub struct ConfigAnalyzer {
 impl ConfigAnalyzer {
     /// Create a ConfigAnalyzer from the user's saved openclaw.json config
     ///
-    /// Same pattern as LogAnalyzer::from_config(). Returns None if no AI
-    /// provider is configured.
+    /// Reads from the wizard's config which contains the provider and API key.
+    /// Returns None if no AI provider is configured.
     pub fn from_config() -> Option<Self> {
+        use crate::services::platform::Platform;
+
+        // Try wizard config first (has provider + API key)
+        let wizard_config_path = Platform::config_dir().ok()?.join("openclaw.json");
+
+        if let Ok(config) = ConfigWriter::read_json(&wizard_config_path)
+            && let Some((provider, api_key)) = Self::extract_ai_config(&config)
+            && !provider.is_empty()
+            && !api_key.is_empty()
+        {
+            return Some(Self {
+                provider,
+                api_key,
+                http_client: reqwest::Client::new(),
+            });
+        }
+
+        // Fallback to OpenClaw config (for backwards compatibility)
         let home = std::env::var("HOME").ok()?;
-        let config_path = PathBuf::from(format!("{}/.openclaw/openclaw.json", home));
+        let openclaw_config_path = PathBuf::from(format!("{}/.openclaw/openclaw.json", home));
 
-        let config: serde_json::Value = ConfigWriter::read_json(&config_path).ok()?;
-
+        let config: serde_json::Value = ConfigWriter::read_json(&openclaw_config_path).ok()?;
         let (provider, api_key) = Self::extract_ai_config(&config)?;
 
         if provider.is_empty() || api_key.is_empty() {
@@ -71,14 +88,13 @@ impl ConfigAnalyzer {
         LAST_COST_ANALYSIS.store(now, Ordering::Relaxed);
 
         // Redact secrets using LogAnalyzer's shared method
-        let config_str = serde_json::to_string_pretty(config)
-            .unwrap_or_else(|_| "{}".to_string());
+        let config_str = serde_json::to_string_pretty(config).unwrap_or_else(|_| "{}".to_string());
         let redacted = LogAnalyzer::redact_secrets(&config_str);
 
         // Get pricing reference
         let pricing = Self::get_pricing();
-        let pricing_str = serde_json::to_string(&pricing.models)
-            .unwrap_or_else(|_| "[]".to_string());
+        let pricing_str =
+            serde_json::to_string(&pricing.models).unwrap_or_else(|_| "[]".to_string());
 
         let prompt = format!(
             "You are a cloud cost optimization expert. Analyze this OpenClaw AI assistant \
@@ -101,13 +117,14 @@ impl ConfigAnalyzer {
             redacted, pricing_str
         );
 
-        let result = match self.provider.to_lowercase().as_str() {
+        match self.provider.to_lowercase().as_str() {
             "anthropic" => self.call_anthropic(&prompt).await,
             "openai" => self.call_openai(&prompt).await,
-            _ => Err(anyhow::anyhow!("Unsupported AI provider: {}", self.provider)),
-        };
-
-        result
+            _ => Err(anyhow::anyhow!(
+                "Unsupported AI provider: {}",
+                self.provider
+            )),
+        }
     }
 
     /// Return static LLM pricing data for reference
@@ -274,16 +291,28 @@ impl ConfigAnalyzer {
     fn extract_ai_config(config: &serde_json::Value) -> Option<(String, String)> {
         // Pattern 1: ai.provider / ai.apiKey
         if let (Some(provider), Some(key)) = (
-            config.get("ai").and_then(|ai| ai.get("provider")).and_then(|v| v.as_str()),
-            config.get("ai").and_then(|ai| ai.get("apiKey")).and_then(|v| v.as_str()),
+            config
+                .get("ai")
+                .and_then(|ai| ai.get("provider"))
+                .and_then(|v| v.as_str()),
+            config
+                .get("ai")
+                .and_then(|ai| ai.get("apiKey"))
+                .and_then(|v| v.as_str()),
         ) {
             return Some((provider.to_string(), key.to_string()));
         }
 
         // Pattern 2: ai.provider / ai.api_key
         if let (Some(provider), Some(key)) = (
-            config.get("ai").and_then(|ai| ai.get("provider")).and_then(|v| v.as_str()),
-            config.get("ai").and_then(|ai| ai.get("api_key")).and_then(|v| v.as_str()),
+            config
+                .get("ai")
+                .and_then(|ai| ai.get("provider"))
+                .and_then(|v| v.as_str()),
+            config
+                .get("ai")
+                .and_then(|ai| ai.get("api_key"))
+                .and_then(|v| v.as_str()),
         ) {
             return Some((provider.to_string(), key.to_string()));
         }
@@ -321,7 +350,10 @@ mod tests {
     #[test]
     fn test_get_pricing_has_models() {
         let pricing = ConfigAnalyzer::get_pricing();
-        assert!(pricing.models.len() >= 7, "Should have at least 7 pricing models");
+        assert!(
+            pricing.models.len() >= 7,
+            "Should have at least 7 pricing models"
+        );
         assert_eq!(pricing.last_updated, "2026-Q1");
 
         // Verify a known model exists
@@ -353,7 +385,10 @@ mod tests {
         assert!(result.is_ok());
         let analysis = result.unwrap();
         assert_eq!(analysis.recommendations.len(), 1);
-        assert_eq!(analysis.recommendations[0].current_model, "claude-sonnet-4-20250514");
+        assert_eq!(
+            analysis.recommendations[0].current_model,
+            "claude-sonnet-4-20250514"
+        );
         assert!((analysis.total_savings_monthly - 10.22).abs() < 0.01);
     }
 
@@ -381,6 +416,9 @@ mod tests {
 ```"#;
         let result = ConfigAnalyzer::parse_cost_response(text);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().summary, Some("No recommendations".to_string()));
+        assert_eq!(
+            result.unwrap().summary,
+            Some("No recommendations".to_string())
+        );
     }
 }

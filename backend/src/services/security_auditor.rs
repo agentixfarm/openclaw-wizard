@@ -19,8 +19,8 @@ impl SecurityAuditor {
             .map_err(|_| anyhow::anyhow!("HOME environment variable not set"))?;
         let config_path = PathBuf::from(format!("{}/.openclaw/openclaw.json", home));
 
-        let config: serde_json::Value = ConfigWriter::read_json(&config_path)
-            .unwrap_or_else(|_| serde_json::json!({}));
+        let config: serde_json::Value =
+            ConfigWriter::read_json(&config_path).unwrap_or_else(|_| serde_json::json!({}));
 
         Self::audit_config(&config)
     }
@@ -65,32 +65,37 @@ impl SecurityAuditor {
         let key_fields = [
             ("apiKey", config.get("apiKey")),
             ("api_key", config.get("api_key")),
-            ("ai.apiKey", config.get("ai").and_then(|ai| ai.get("apiKey"))),
-            ("ai.api_key", config.get("ai").and_then(|ai| ai.get("api_key"))),
+            (
+                "ai.apiKey",
+                config.get("ai").and_then(|ai| ai.get("apiKey")),
+            ),
+            (
+                "ai.api_key",
+                config.get("ai").and_then(|ai| ai.get("api_key")),
+            ),
         ];
 
         for (field, value) in &key_fields {
-            if let Some(v) = value {
-                if let Some(key) = v.as_str() {
-                    if key.starts_with("sk-") {
-                        findings.push(SecurityFinding {
-                            id: "SEC-001".to_string(),
-                            severity: "warning".to_string(),
-                            title: "API key stored in config file".to_string(),
-                            description: format!(
-                                "An API key starting with 'sk-' was found in the '{}' field. \
-                                 Storing API keys in config files increases exposure risk.",
-                                field
-                            ),
-                            affected_field: field.to_string(),
-                            fix_suggestion: Some(
-                                "Move API key to ANTHROPIC_API_KEY or OPENAI_API_KEY environment variable"
-                                    .to_string(),
-                            ),
-                        });
-                        return; // Only report once
-                    }
-                }
+            if let Some(v) = value
+                && let Some(key) = v.as_str()
+                && key.starts_with("sk-")
+            {
+                findings.push(SecurityFinding {
+                    id: "SEC-001".to_string(),
+                    severity: "warning".to_string(),
+                    title: "API key stored in config file".to_string(),
+                    description: format!(
+                        "An API key starting with 'sk-' was found in the '{}' field. \
+                         Storing API keys in config files increases exposure risk.",
+                        field
+                    ),
+                    affected_field: field.to_string(),
+                    fix_suggestion: Some(
+                        "Move API key to ANTHROPIC_API_KEY or OPENAI_API_KEY environment variable"
+                            .to_string(),
+                    ),
+                });
+                return; // Only report once
             }
         }
     }
@@ -193,9 +198,7 @@ impl SecurityAuditor {
                         bind
                     ),
                     affected_field: "tailscale".to_string(),
-                    fix_suggestion: Some(
-                        "Enable Tailscale for secure remote access".to_string(),
-                    ),
+                    fix_suggestion: Some("Enable Tailscale for secure remote access".to_string()),
                 });
             }
         }
@@ -221,7 +224,7 @@ impl SecurityAuditor {
                     .or_else(|| channel.get("allowed_users"))
                     .and_then(|u| u.as_array());
 
-                let has_users = allowed_users.map_or(false, |u| !u.is_empty());
+                let has_users = allowed_users.is_some_and(|u| !u.is_empty());
 
                 if dm_policy != "allowlist" || !has_users {
                     findings.push(SecurityFinding {
@@ -269,30 +272,24 @@ impl SecurityAuditor {
         let credential = config
             .get("auth")
             .and_then(|a| a.get("credential"))
-            .or_else(|| {
-                config
-                    .get("gateway")
-                    .and_then(|g| g.get("auth_credential"))
-            })
+            .or_else(|| config.get("gateway").and_then(|g| g.get("auth_credential")))
             .and_then(|c| c.as_str());
 
-        if let Some(cred) = credential {
-            if cred.len() < 16 {
-                findings.push(SecurityFinding {
-                    id: "SEC-007".to_string(),
-                    severity: "warning".to_string(),
-                    title: "Weak authentication credential".to_string(),
-                    description: format!(
-                        "Auth credential is only {} characters. Short credentials are \
-                         easier to brute-force.",
-                        cred.len()
-                    ),
-                    affected_field: "auth.credential".to_string(),
-                    fix_suggestion: Some(
-                        "Use a credential with at least 16 characters".to_string(),
-                    ),
-                });
-            }
+        if let Some(cred) = credential
+            && cred.len() < 16
+        {
+            findings.push(SecurityFinding {
+                id: "SEC-007".to_string(),
+                severity: "warning".to_string(),
+                title: "Weak authentication credential".to_string(),
+                description: format!(
+                    "Auth credential is only {} characters. Short credentials are \
+                     easier to brute-force.",
+                    cred.len()
+                ),
+                affected_field: "auth.credential".to_string(),
+                fix_suggestion: Some("Use a credential with at least 16 characters".to_string()),
+            });
         }
     }
 

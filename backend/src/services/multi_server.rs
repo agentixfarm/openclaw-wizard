@@ -6,9 +6,7 @@
 //!
 //! Server targets persisted to ~/.openclaw/servers.json.
 
-use crate::models::types::{
-    MultiServerProgress, ServerDeployResult, ServerTarget, WizardConfig,
-};
+use crate::models::types::{MultiServerProgress, ServerDeployResult, ServerTarget, WizardConfig};
 use crate::services::config::ConfigWriter;
 use crate::services::remote::RemoteService;
 use crate::services::ssh::SshService;
@@ -43,8 +41,7 @@ impl MultiServerOrchestrator {
     /// Save server list to ~/.openclaw/servers.json
     pub fn save_servers(servers: &[ServerTarget]) -> Result<()> {
         let path = Self::servers_file_path();
-        ConfigWriter::write_json(&path, &servers.to_vec())
-            .context("Failed to write servers.json")
+        ConfigWriter::write_json(&path, &servers.to_vec()).context("Failed to write servers.json")
     }
 
     /// Add a new server target
@@ -108,7 +105,8 @@ impl MultiServerOrchestrator {
                 let result = crate::models::types::ServerTestResult {
                     server_id: id.to_string(),
                     success: false,
-                    message: "SSH authentication failed. Check your SSH key and username.".to_string(),
+                    message: "SSH authentication failed. Check your SSH key and username."
+                        .to_string(),
                 };
                 Self::save_servers(&servers)?;
                 Ok(result)
@@ -285,7 +283,10 @@ impl MultiServerOrchestrator {
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 openclaw daemon stop 2>/dev/null || pkill -f "openclaw" 2>/dev/null || true"#;
 
-        match ssh.exec_remote(&server.host, &server.username, stop_cmd).await {
+        match ssh
+            .exec_remote(&server.host, &server.username, stop_cmd)
+            .await
+        {
             Ok(_) => completed_stages.push("stop_daemon".to_string()),
             Err(e) => {
                 warn!("Failed to stop daemon on {}: {}", server.host, e);
@@ -341,9 +342,7 @@ npm uninstall -g @anthropic/openclaw 2>/dev/null || true"#;
     /// Get the path to ~/.openclaw/servers.json
     fn servers_file_path() -> PathBuf {
         let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-        PathBuf::from(home)
-            .join(".openclaw")
-            .join(SERVERS_FILE)
+        PathBuf::from(home).join(".openclaw").join(SERVERS_FILE)
     }
 
     /// Generate a unique server ID using timestamp + random suffix

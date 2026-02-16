@@ -8,6 +8,11 @@ interface ActionLoading {
   daemon: string | null;
 }
 
+interface ActionError {
+  gateway: string | null;
+  daemon: string | null;
+}
+
 /**
  * Hook for service status polling, independent gateway/daemon lifecycle
  * actions, and doctor diagnostics.
@@ -17,6 +22,10 @@ interface ActionLoading {
 export function useServiceManager() {
   const [services, setServices] = useState<ServicesStatus | null>(null);
   const [actionLoading, setActionLoading] = useState<ActionLoading>({
+    gateway: null,
+    daemon: null,
+  });
+  const [actionError, setActionError] = useState<ActionError>({
     gateway: null,
     daemon: null,
   });
@@ -39,14 +48,23 @@ export function useServiceManager() {
     return () => clearInterval(interval);
   }, [refreshStatus]);
 
+  const clearError = useCallback((service: 'gateway' | 'daemon') => {
+    setActionError(prev => ({ ...prev, [service]: null }));
+  }, []);
+
   // Gateway actions
   const startGateway = useCallback(async () => {
     setActionLoading(prev => ({ ...prev, gateway: 'start' }));
+    setActionError(prev => ({ ...prev, gateway: null }));
     try {
-      await api.startGateway();
+      const result = await api.startGateway();
+      if (!result.success) {
+        setActionError(prev => ({ ...prev, gateway: result.message }));
+      }
       await refreshStatus();
     } catch (error) {
-      console.error('Failed to start gateway:', error);
+      const msg = error instanceof Error ? error.message : 'Failed to start gateway';
+      setActionError(prev => ({ ...prev, gateway: msg }));
     } finally {
       setActionLoading(prev => ({ ...prev, gateway: null }));
     }
@@ -54,11 +72,16 @@ export function useServiceManager() {
 
   const stopGateway = useCallback(async () => {
     setActionLoading(prev => ({ ...prev, gateway: 'stop' }));
+    setActionError(prev => ({ ...prev, gateway: null }));
     try {
-      await api.stopGateway();
+      const result = await api.stopGateway();
+      if (!result.success) {
+        setActionError(prev => ({ ...prev, gateway: result.message }));
+      }
       await refreshStatus();
     } catch (error) {
-      console.error('Failed to stop gateway:', error);
+      const msg = error instanceof Error ? error.message : 'Failed to stop gateway';
+      setActionError(prev => ({ ...prev, gateway: msg }));
     } finally {
       setActionLoading(prev => ({ ...prev, gateway: null }));
     }
@@ -66,11 +89,16 @@ export function useServiceManager() {
 
   const restartGateway = useCallback(async () => {
     setActionLoading(prev => ({ ...prev, gateway: 'restart' }));
+    setActionError(prev => ({ ...prev, gateway: null }));
     try {
-      await api.restartGateway();
+      const result = await api.restartGateway();
+      if (!result.success) {
+        setActionError(prev => ({ ...prev, gateway: result.message }));
+      }
       await refreshStatus();
     } catch (error) {
-      console.error('Failed to restart gateway:', error);
+      const msg = error instanceof Error ? error.message : 'Failed to restart gateway';
+      setActionError(prev => ({ ...prev, gateway: msg }));
     } finally {
       setActionLoading(prev => ({ ...prev, gateway: null }));
     }
@@ -79,11 +107,16 @@ export function useServiceManager() {
   // Daemon actions
   const startDaemon = useCallback(async () => {
     setActionLoading(prev => ({ ...prev, daemon: 'start' }));
+    setActionError(prev => ({ ...prev, daemon: null }));
     try {
-      await api.startServiceDaemon();
+      const result = await api.startServiceDaemon();
+      if (!result.success) {
+        setActionError(prev => ({ ...prev, daemon: result.message }));
+      }
       await refreshStatus();
     } catch (error) {
-      console.error('Failed to start daemon:', error);
+      const msg = error instanceof Error ? error.message : 'Failed to start daemon';
+      setActionError(prev => ({ ...prev, daemon: msg }));
     } finally {
       setActionLoading(prev => ({ ...prev, daemon: null }));
     }
@@ -91,11 +124,16 @@ export function useServiceManager() {
 
   const stopDaemon = useCallback(async () => {
     setActionLoading(prev => ({ ...prev, daemon: 'stop' }));
+    setActionError(prev => ({ ...prev, daemon: null }));
     try {
-      await api.stopServiceDaemon();
+      const result = await api.stopServiceDaemon();
+      if (!result.success) {
+        setActionError(prev => ({ ...prev, daemon: result.message }));
+      }
       await refreshStatus();
     } catch (error) {
-      console.error('Failed to stop daemon:', error);
+      const msg = error instanceof Error ? error.message : 'Failed to stop daemon';
+      setActionError(prev => ({ ...prev, daemon: msg }));
     } finally {
       setActionLoading(prev => ({ ...prev, daemon: null }));
     }
@@ -103,11 +141,16 @@ export function useServiceManager() {
 
   const restartDaemon = useCallback(async () => {
     setActionLoading(prev => ({ ...prev, daemon: 'restart' }));
+    setActionError(prev => ({ ...prev, daemon: null }));
     try {
-      await api.restartServiceDaemon();
+      const result = await api.restartServiceDaemon();
+      if (!result.success) {
+        setActionError(prev => ({ ...prev, daemon: result.message }));
+      }
       await refreshStatus();
     } catch (error) {
-      console.error('Failed to restart daemon:', error);
+      const msg = error instanceof Error ? error.message : 'Failed to restart daemon';
+      setActionError(prev => ({ ...prev, daemon: msg }));
     } finally {
       setActionLoading(prev => ({ ...prev, daemon: null }));
     }
@@ -129,6 +172,8 @@ export function useServiceManager() {
   return {
     services,
     actionLoading,
+    actionError,
+    clearError,
     startGateway,
     stopGateway,
     restartGateway,

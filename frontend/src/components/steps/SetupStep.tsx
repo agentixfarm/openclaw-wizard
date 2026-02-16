@@ -50,7 +50,7 @@ export function SetupStep() {
     // Pre-populate from existing config if user chose to
     if (detection?.installed && detection.config_found && useExisting === true && detection.existing_config) {
       try {
-        const existing = detection.existing_config as any;
+        const existing = detection.existing_config as Record<string, Record<string, unknown>>;
         if (existing.ai?.provider) {
           updateFormData('providerConfig', {
             provider: existing.ai.provider,

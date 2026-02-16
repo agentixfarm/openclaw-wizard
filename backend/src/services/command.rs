@@ -43,6 +43,7 @@ impl SafeCommand {
     /// Execute a command and expect success (exit code 0)
     ///
     /// Returns Err if exit code is non-zero, including stderr in error message.
+    #[allow(dead_code)]
     pub fn run_expect_success(program: &str, args: &[&str]) -> Result<String> {
         let output = Self::run(program, args)?;
 

@@ -192,6 +192,7 @@ impl SshService {
     }
 
     /// Retrieve SSH key path from platform keychain
+    #[allow(dead_code)]
     pub fn get_ssh_key_path(&self, host: &str, user: &str) -> Result<String> {
         Self::validate_host(host)?;
         Self::validate_username(user)?;
@@ -206,6 +207,7 @@ impl SshService {
     }
 
     /// Delete SSH credentials from keychain
+    #[allow(dead_code)]
     pub fn delete_ssh_credentials(&self, host: &str, user: &str) -> Result<()> {
         Self::validate_host(host)?;
         Self::validate_username(user)?;
@@ -227,9 +229,8 @@ impl SshService {
     /// Validate hostname or IP address
     fn validate_host(host: &str) -> Result<()> {
         static HOST_REGEX: OnceLock<Regex> = OnceLock::new();
-        let regex = HOST_REGEX.get_or_init(|| {
-            Regex::new(r"^[a-zA-Z0-9.-]+$").expect("Invalid host regex")
-        });
+        let regex =
+            HOST_REGEX.get_or_init(|| Regex::new(r"^[a-zA-Z0-9.-]+$").expect("Invalid host regex"));
 
         if host.is_empty() {
             anyhow::bail!("Host cannot be empty");
@@ -245,9 +246,8 @@ impl SshService {
     /// Validate Unix username
     fn validate_username(user: &str) -> Result<()> {
         static USER_REGEX: OnceLock<Regex> = OnceLock::new();
-        let regex = USER_REGEX.get_or_init(|| {
-            Regex::new(r"^[a-z_][a-z0-9_-]*$").expect("Invalid username regex")
-        });
+        let regex = USER_REGEX
+            .get_or_init(|| Regex::new(r"^[a-z_][a-z0-9_-]*$").expect("Invalid username regex"));
 
         if user.is_empty() {
             anyhow::bail!("Username cannot be empty");

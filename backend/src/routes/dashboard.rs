@@ -6,7 +6,9 @@
 //! - Configuration CRUD (read/write/import/export openclaw.json)
 
 use crate::models::types::{ApiResponse, DaemonActionResponse, DaemonStatus, HealthSnapshot};
-use crate::services::{config::ConfigWriter, daemon::DaemonService, health::HealthService, platform::Platform};
+use crate::services::{
+    config::ConfigWriter, daemon::DaemonService, health::HealthService, platform::Platform,
+};
 use axum::Json;
 use std::path::PathBuf;
 
@@ -150,9 +152,7 @@ pub async fn get_config() -> Json<ApiResponse<serde_json::Value>> {
 ///
 /// Saves new configuration atomically to openclaw.json in the wizard config directory.
 /// Validates that input is valid JSON before saving.
-pub async fn save_config_handler(
-    Json(config): Json<serde_json::Value>,
-) -> Json<ApiResponse<()>> {
+pub async fn save_config_handler(Json(config): Json<serde_json::Value>) -> Json<ApiResponse<()>> {
     let path = config_path();
 
     // Validate it's a JSON object (not null, array, or primitive)
@@ -204,19 +204,23 @@ pub async fn get_chat_url() -> Json<ApiResponse<serde_json::Value>> {
     let path = config_path();
     let config = match ConfigWriter::read_json::<serde_json::Value>(&path) {
         Ok(c) => c,
-        Err(e) => return Json(ApiResponse {
-            success: false,
-            data: None,
-            error: Some(format!("Config not found: {}", e)),
-        }),
+        Err(e) => {
+            return Json(ApiResponse {
+                success: false,
+                data: None,
+                error: Some(format!("Config not found: {}", e)),
+            });
+        }
     };
 
-    let port = config.get("gateway")
+    let port = config
+        .get("gateway")
         .and_then(|g| g.get("port"))
         .and_then(|p| p.as_u64())
         .unwrap_or(18789);
 
-    let token = config.get("gateway")
+    let token = config
+        .get("gateway")
         .and_then(|g| g.get("auth"))
         .and_then(|a| a.get("token"))
         .and_then(|t| t.as_str());
@@ -243,7 +247,8 @@ pub async fn get_version_info() -> Json<ApiResponse<serde_json::Value>> {
     let current_version = match SafeCommand::run("openclaw", &["--version"]) {
         Ok(output) if output.exit_code == 0 => {
             // Parse version from output like "openclaw 2026.2.15"
-            output.stdout
+            output
+                .stdout
                 .split_whitespace()
                 .last()
                 .unwrap_or("unknown")
@@ -254,15 +259,13 @@ pub async fn get_version_info() -> Json<ApiResponse<serde_json::Value>> {
 
     // Check for latest version using npm view
     let latest_version = match SafeCommand::run("npm", &["view", "openclaw", "version"]) {
-        Ok(output) if output.exit_code == 0 => {
-            output.stdout.trim().to_string()
-        }
+        Ok(output) if output.exit_code == 0 => output.stdout.trim().to_string(),
         _ => current_version.clone(), // Fallback to current if check fails
     };
 
     let update_available = current_version != "unknown"
         && latest_version != current_version
-        && latest_version != "";
+        && !latest_version.is_empty();
 
     Json(ApiResponse {
         success: true,
@@ -273,4 +276,56 @@ pub async fn get_version_info() -> Json<ApiResponse<serde_json::Value>> {
         })),
         error: None,
     })
+}
+
+// ===== WhatsApp Connection =====
+
+use crate::services::whatsapp::{WhatsAppProgress, WhatsAppService};
+use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+use axum::response::Response;
+use tokio::sync::mpsc;
+
+/// WebSocket handler for WhatsApp QR code connection
+pub async fn whatsapp_connect_ws(ws: WebSocketUpgrade) -> Response {
+    ws.on_upgrade(handle_whatsapp_socket)
+}
+
+async fn handle_whatsapp_socket(mut socket: WebSocket) {
+    let (tx, mut rx) = mpsc::channel::<WhatsAppProgress>(100);
+
+    // Spawn connection task
+    let connect_task = tokio::spawn(async move {
+        if let Err(e) = WhatsAppService::connect(tx.clone()).await {
+            let _ = tx
+                .send(WhatsAppProgress {
+                    stage: "error".into(),
+                    status: "failed".into(),
+                    message: "Connection failed".into(),
+                    qr_code: None,
+                    error: Some(e.to_string()),
+                })
+                .await;
+        }
+    });
+
+    // Stream progress updates to WebSocket
+    while let Some(progress) = rx.recv().await {
+        let json = match serde_json::to_string(&progress) {
+            Ok(j) => j,
+            Err(_) => continue,
+        };
+
+        if socket.send(Message::Text(json.into())).await.is_err() {
+            break;
+        }
+
+        // Only close on final stages (connected/error), not intermediate ones (config)
+        if progress.status == "failed" || progress.stage == "connected" || progress.stage == "error"
+        {
+            break;
+        }
+    }
+
+    let _ = connect_task.await;
+    // WebSocket will close automatically when dropped
 }

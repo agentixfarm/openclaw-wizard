@@ -4,9 +4,7 @@
 //! and OpenClaw doctor diagnostics. Phase 7 replacement for dashboard
 //! daemon routes with finer-grained service control.
 
-use crate::models::types::{
-    ApiResponse, DoctorReport, ServiceActionResponse, ServicesStatus,
-};
+use crate::models::types::{ApiResponse, DoctorReport, ServiceActionResponse, ServicesStatus};
 use crate::services::doctor::DoctorService;
 use crate::services::service_manager::ServiceManager;
 use axum::Json;

@@ -5,7 +5,7 @@
 //! The config file always contains valid, complete data.
 
 use anyhow::{Context, Result};
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use std::fs;
 use std::io::Write;
 use std::path::Path;
@@ -19,8 +19,8 @@ impl ConfigWriter {
     /// Creates parent directories if needed.
     /// Uses temp file + sync + atomic rename to prevent corruption.
     pub fn write_json<T: Serialize>(path: &Path, data: &T) -> Result<()> {
-        let json = serde_json::to_string_pretty(data)
-            .context("Failed to serialize data to JSON")?;
+        let json =
+            serde_json::to_string_pretty(data).context("Failed to serialize data to JSON")?;
 
         Self::write_text(path, &json)
     }
@@ -41,8 +41,9 @@ impl ConfigWriter {
     pub fn write_text(path: &Path, content: &str) -> Result<()> {
         // Create parent directories if they don't exist
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)
-                .with_context(|| format!("Failed to create parent directory: {}", parent.display()))?;
+            fs::create_dir_all(parent).with_context(|| {
+                format!("Failed to create parent directory: {}", parent.display())
+            })?;
         }
 
         // Write to temporary file
@@ -111,13 +112,20 @@ mod tests {
 
         // Temp file should not exist after successful write
         let temp_path = config_path.with_extension("tmp");
-        assert!(!temp_path.exists(), "Temp file should be removed after successful write");
+        assert!(
+            !temp_path.exists(),
+            "Temp file should be removed after successful write"
+        );
     }
 
     #[test]
     fn test_write_creates_parent_dirs() {
         let temp_dir = TempDir::new().unwrap();
-        let config_path = temp_dir.path().join("nested").join("path").join("config.json");
+        let config_path = temp_dir
+            .path()
+            .join("nested")
+            .join("path")
+            .join("config.json");
 
         let data = TestConfig {
             name: "test".to_string(),
@@ -139,7 +147,12 @@ mod tests {
 
         let result: Result<TestConfig> = ConfigWriter::read_json(&config_path);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Failed to read file"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Failed to read file")
+        );
     }
 
     #[test]

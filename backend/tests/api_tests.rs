@@ -4,10 +4,10 @@
 //! without starting a real server.
 
 use axum::{
+    Router,
     body::Body,
     http::{Request, StatusCode},
     routing::{get, post},
-    Router,
 };
 use http_body_util::BodyExt;
 use tower::ServiceExt;
@@ -19,20 +19,38 @@ fn app() -> Router {
     Router::new()
         .route("/api/health", get(routes::api::health))
         .route("/api/system/info", get(routes::api::system_info))
-        .route("/api/system/requirements", get(routes::api::system_requirements))
-        .route("/api/system/detect-openclaw", get(routes::api::detect_openclaw))
-        .route("/api/wizard/validate-key", post(routes::wizard::validate_api_key))
-        .route("/api/wizard/rollback", post(routes::wizard::rollback_installation))
-        .route("/api/services/status", get(routes::services::services_status))
-        .route("/api/intelligence/pricing", get(routes::intelligence::get_pricing))
-        .route("/api/intelligence/security-audit", get(routes::intelligence::security_audit))
+        .route(
+            "/api/system/requirements",
+            get(routes::api::system_requirements),
+        )
+        .route(
+            "/api/system/detect-openclaw",
+            get(routes::api::detect_openclaw),
+        )
+        .route(
+            "/api/wizard/validate-key",
+            post(routes::wizard::validate_api_key),
+        )
+        .route(
+            "/api/wizard/rollback",
+            post(routes::wizard::rollback_installation),
+        )
+        .route(
+            "/api/services/status",
+            get(routes::services::services_status),
+        )
+        .route(
+            "/api/intelligence/pricing",
+            get(routes::intelligence::get_pricing),
+        )
+        .route(
+            "/api/intelligence/security-audit",
+            get(routes::intelligence::security_audit),
+        )
 }
 
 async fn get_response(app: Router, uri: &str) -> (StatusCode, String) {
-    let request = Request::builder()
-        .uri(uri)
-        .body(Body::empty())
-        .unwrap();
+    let request = Request::builder().uri(uri).body(Body::empty()).unwrap();
 
     let response = app.oneshot(request).await.unwrap();
     let status = response.status();

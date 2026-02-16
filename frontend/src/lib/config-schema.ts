@@ -30,6 +30,14 @@ export const openClawConfigSchema = z.object({
     name: z.string(),
     api_key: z.string(),
   }).optional(),
+  models: z.object({
+    main: z.string().optional().default('claude-opus-4-6'),
+    heartbeat: z.string().optional().default('claude-haiku-4-5-20251001'),
+    agent: z.string().optional().default('claude-sonnet-4-5-20250929'),
+  }).optional(),
+  heartbeat: z.object({
+    interval_minutes: z.number().min(5).max(1440).optional().default(60), // 5 minutes to 24 hours
+  }).optional(),
 }).passthrough(); // passthrough() preserves unknown fields
 
 /**

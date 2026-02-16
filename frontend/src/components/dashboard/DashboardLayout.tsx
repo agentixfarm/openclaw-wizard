@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Activity, Settings, FileText, Wrench, Zap, MessageSquare, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Activity, Settings, FileText, Wrench, Zap, MessageSquare, ExternalLink, DollarSign } from 'lucide-react';
 import { AsciiLogo } from '../ui/AsciiLogo';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { Tabs } from '../ui/Tabs';
@@ -13,7 +13,7 @@ import { HealthMonitor } from './HealthMonitor';
 import { ConfigEditor } from './ConfigEditor';
 import { SkillsBrowser } from '../steps/SkillsBrowser';
 import { LogViewer } from './LogViewer';
-import { CostOptimizer } from './CostOptimizer';
+import { CostOptimizationTab } from './CostOptimizationTab';
 import { SecurityAuditPanel } from './SecurityAuditPanel';
 import { UninstallPanel } from './UninstallPanel';
 import { UpgradePanel } from './UpgradePanel';
@@ -22,7 +22,7 @@ interface DashboardLayoutProps {
   onBackToWizard: () => void;
 }
 
-type Tab = 'overview' | 'skills' | 'logs' | 'settings' | 'advanced';
+type Tab = 'overview' | 'skills' | 'logs' | 'cost' | 'settings' | 'advanced';
 
 /**
  * Main dashboard layout with tabbed navigation
@@ -61,6 +61,7 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
   // Fetch authenticated chat URL when gateway is running
   useEffect(() => {
     if (!services?.gateway?.running) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setChatUrl(null);
       return;
     }
@@ -72,9 +73,9 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
       .catch(() => {});
   }, [services?.gateway?.running]);
 
-  // Auto-load pricing when Advanced tab opens
+  // Auto-load pricing when Cost Optimization tab opens
   useEffect(() => {
-    if (activeTab === 'advanced' && !pricing) {
+    if (activeTab === 'cost' && !pricing) {
       loadPricing();
     }
   }, [activeTab, pricing, loadPricing]);
@@ -142,8 +143,9 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
             <Tabs
               tabs={[
                 { id: 'overview', label: 'Overview', icon: <Activity className="w-4 h-4" /> },
-                { id: 'skills', label: 'Skills', icon: <Wrench className="w-4 h-4" /> },
+                { id: 'skills', label: 'Skills', icon: <Wrench className="w-4 h-4" />, badge: 'Coming Soon' },
                 { id: 'logs', label: 'Logs', icon: <FileText className="w-4 h-4" /> },
+                { id: 'cost', label: 'Cost Optimization', icon: <DollarSign className="w-4 h-4" /> },
                 { id: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
                 { id: 'advanced', label: 'Advanced', icon: <Zap className="w-4 h-4" /> },
               ]}
@@ -265,10 +267,22 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
               </div>
             )}
 
+            {/* COST OPTIMIZATION TAB */}
+            {activeTab === 'cost' && (
+              <CostOptimizationTab
+                costAnalysis={costAnalysis}
+                pricing={pricing}
+                costLoading={costLoading}
+                error={intelError}
+                onAnalyzeCost={analyzeCost}
+                onLoadPricing={loadPricing}
+              />
+            )}
+
             {/* SETTINGS TAB - Config Editor */}
             {activeTab === 'settings' && <ConfigEditor />}
 
-            {/* ADVANCED TAB - Diagnostics, Updates, Cost, Security, Uninstall */}
+            {/* ADVANCED TAB - Diagnostics, Updates, Security, Uninstall */}
             {activeTab === 'advanced' && (
               <div className="space-y-6">
                 <DoctorDiagnostics
@@ -277,14 +291,6 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
                   onRun={runDoctor}
                 />
                 <UpgradePanel />
-                <CostOptimizer
-                  costAnalysis={costAnalysis}
-                  pricing={pricing}
-                  loading={costLoading}
-                  error={intelError}
-                  onAnalyze={analyzeCost}
-                  onLoadPricing={loadPricing}
-                />
                 <SecurityAuditPanel
                   audit={securityAuditResult}
                   loading={auditLoading}

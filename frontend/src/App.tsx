@@ -71,7 +71,7 @@ function App() {
         // Config exists - clear any wizard state and go to dashboard
         localStorage.removeItem('openclaw-wizard-state');
         setMode('dashboard');
-      } catch (error) {
+      } catch {
         setMode('wizard');
       }
     };

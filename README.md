@@ -47,8 +47,8 @@ Download from [GitHub Releases](https://github.com/agentixfarm/openclaw-wizard/r
 
 ```bash
 # Example: macOS Apple Silicon
-tar xzf openclaw-wizard-macos-arm64.tar.gz
-./openclaw-wizard-macos-arm64
+mkdir openclaw-wizard && tar xzf openclaw-wizard-macos-arm64.tar.gz -C openclaw-wizard
+cd openclaw-wizard && ./openclaw-wizard
 ```
 
 ### Build from source

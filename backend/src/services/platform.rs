@@ -34,6 +34,7 @@ impl Platform {
     /// Checks /proc/version for "microsoft" string on Linux systems.
     /// Always returns false on non-Linux systems.
     #[cfg(target_os = "linux")]
+    #[allow(dead_code)]
     pub fn is_wsl() -> bool {
         if let Ok(version) = fs::read_to_string("/proc/version") {
             version.to_lowercase().contains("microsoft")
@@ -43,6 +44,7 @@ impl Platform {
     }
 
     #[cfg(not(target_os = "linux"))]
+    #[allow(dead_code)]
     pub fn is_wsl() -> bool {
         false
     }
@@ -81,7 +83,10 @@ impl Platform {
             if let Ok(appdata) = env::var("APPDATA") {
                 PathBuf::from(appdata).join("openclaw-wizard")
             } else {
-                Self::home_dir()?.join("AppData").join("Roaming").join("openclaw-wizard")
+                Self::home_dir()?
+                    .join("AppData")
+                    .join("Roaming")
+                    .join("openclaw-wizard")
             }
         } else {
             // Fallback for unknown platforms
@@ -102,6 +107,7 @@ impl Platform {
     /// - Windows: %LOCALAPPDATA%/openclaw-wizard
     ///
     /// Creates the directory if it doesn't exist.
+    #[allow(dead_code)]
     pub fn data_dir() -> Result<PathBuf> {
         let path = if cfg!(target_os = "macos") {
             Self::config_dir()?.join("data")
@@ -109,13 +115,19 @@ impl Platform {
             if let Ok(xdg_data) = env::var("XDG_DATA_HOME") {
                 PathBuf::from(xdg_data).join("openclaw-wizard")
             } else {
-                Self::home_dir()?.join(".local").join("share").join("openclaw-wizard")
+                Self::home_dir()?
+                    .join(".local")
+                    .join("share")
+                    .join("openclaw-wizard")
             }
         } else if cfg!(target_os = "windows") {
             if let Ok(local_appdata) = env::var("LOCALAPPDATA") {
                 PathBuf::from(local_appdata).join("openclaw-wizard")
             } else {
-                Self::home_dir()?.join("AppData").join("Local").join("openclaw-wizard")
+                Self::home_dir()?
+                    .join("AppData")
+                    .join("Local")
+                    .join("openclaw-wizard")
             }
         } else {
             // Fallback for unknown platforms
@@ -162,7 +174,10 @@ impl Platform {
             // Parse version string (e.g., "v22.1.0" -> 22.1.0)
             let version_clean = version.trim_start_matches('v');
             if let Some((major_str, _)) = version_clean.split_once('.') {
-                major_str.parse::<u32>().ok().map_or(false, |major| major >= 22)
+                major_str
+                    .parse::<u32>()
+                    .ok()
+                    .is_some_and(|major| major >= 22)
             } else {
                 false
             }
@@ -173,7 +188,9 @@ impl Platform {
         checks.push(RequirementCheck {
             name: "Node.js".to_string(),
             required: "v22.0.0 or higher".to_string(),
-            actual: node_version_opt.clone().unwrap_or_else(|| "Not installed".to_string()),
+            actual: node_version_opt
+                .clone()
+                .unwrap_or_else(|| "Not installed".to_string()),
             passed: node_passed,
             help_text: if !node_passed {
                 Some("Install Node.js from https://nodejs.org/".to_string())
@@ -189,7 +206,9 @@ impl Platform {
         checks.push(RequirementCheck {
             name: "npm".to_string(),
             required: "Any version".to_string(),
-            actual: npm_version_opt.clone().unwrap_or_else(|| "Not installed".to_string()),
+            actual: npm_version_opt
+                .clone()
+                .unwrap_or_else(|| "Not installed".to_string()),
             passed: npm_passed,
             help_text: if !npm_passed {
                 Some("npm is bundled with Node.js".to_string())
@@ -199,7 +218,7 @@ impl Platform {
         });
 
         // Disk space check: passes if >= 500MB available
-        let disk_passed = if let Ok(home) = Self::home_dir() {
+        let _disk_passed = if let Ok(home) = Self::home_dir() {
             let mut disks = sysinfo::Disks::new_with_refreshed_list();
             if let Some(disk) = disks.iter_mut().find(|d| home.starts_with(d.mount_point())) {
                 let available_bytes = disk.available_space();

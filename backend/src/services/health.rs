@@ -85,45 +85,74 @@ impl HealthService {
 
     /// Parse health JSON from openclaw CLI
     ///
-    /// Expected format:
+    /// Actual format from `openclaw health --json`:
     /// {
-    ///   "gateway_reachable": true,
-    ///   "gateway_mode": "authenticated",
-    ///   "channels": [
-    ///     {
-    ///       "platform": "telegram",
-    ///       "status": "connected",
-    ///       "last_active": "2024-01-15T10:30:00Z",
-    ///       "error_message": null
-    ///     }
-    ///   ],
-    ///   "session_count": 3,
-    ///   "probe_duration_ms": 145
+    ///   "ok": true,
+    ///   "ts": 1771242097704,
+    ///   "durationMs": 0,
+    ///   "channels": { "telegram": { ... }, "slack": { ... } },
+    ///   "channelOrder": ["telegram", "slack"],
+    ///   "sessions": { "count": 1, ... },
+    ///   "agents": [ ... ]
     /// }
     fn parse_health_json(json: serde_json::Value) -> HealthSnapshot {
-        let gateway_reachable = json.get("gateway_reachable")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
+        // "ok" field indicates gateway is reachable
+        let gateway_reachable = json.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
 
-        let gateway_mode = json.get("gateway_mode")
-            .and_then(|v| v.as_str())
-            .unwrap_or("unknown")
-            .to_string();
+        // No explicit mode field; derive from reachability
+        let gateway_mode = if gateway_reachable {
+            "connected".to_string()
+        } else {
+            "unreachable".to_string()
+        };
 
-        let session_count = json.get("session_count")
+        // Session count is nested under sessions.count
+        let session_count = json
+            .get("sessions")
+            .and_then(|s| s.get("count"))
             .and_then(|v| v.as_u64())
             .unwrap_or(0) as u32;
 
-        let probe_duration_ms = json.get("probe_duration_ms")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0) as u32;
+        let probe_duration_ms = json.get("durationMs").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
 
-        // Parse channels array
-        let channels = json.get("channels")
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|ch| Self::parse_channel_health(ch))
+        // Channels is an object keyed by platform name, not an array
+        let channels = json
+            .get("channels")
+            .and_then(|v| v.as_object())
+            .map(|obj| {
+                obj.iter()
+                    .map(|(platform, ch)| {
+                        let status = ch
+                            .get("status")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or(
+                                if ch.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true) {
+                                    "connected"
+                                } else {
+                                    "disabled"
+                                },
+                            )
+                            .to_string();
+
+                        let last_active = ch
+                            .get("last_active")
+                            .or_else(|| ch.get("lastActive"))
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string());
+
+                        let error_message = ch
+                            .get("error_message")
+                            .or_else(|| ch.get("error"))
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string());
+
+                        ChannelHealth {
+                            platform: platform.clone(),
+                            status,
+                            last_active,
+                            error_message,
+                        }
+                    })
                     .collect()
             })
             .unwrap_or_default();
@@ -138,15 +167,18 @@ impl HealthService {
     }
 
     /// Parse individual channel health from JSON
+    #[allow(dead_code)]
     fn parse_channel_health(json: &serde_json::Value) -> Option<ChannelHealth> {
         let platform = json.get("platform")?.as_str()?.to_string();
         let status = json.get("status")?.as_str()?.to_string();
 
-        let last_active = json.get("last_active")
+        let last_active = json
+            .get("last_active")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
 
-        let error_message = json.get("error_message")
+        let error_message = json
+            .get("error_message")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
 
@@ -159,7 +191,8 @@ impl HealthService {
     }
 
     /// Create unreachable health snapshot with error message
-    fn unreachable_snapshot(error: &str) -> HealthSnapshot {
+    #[allow(dead_code)]
+    fn unreachable_snapshot(_error: &str) -> HealthSnapshot {
         HealthSnapshot {
             gateway_reachable: false,
             gateway_mode: "unreachable".to_string(),
@@ -186,24 +219,25 @@ mod tests {
     #[test]
     fn test_parse_valid_health_json() {
         let json = serde_json::json!({
-            "gateway_reachable": true,
-            "gateway_mode": "authenticated",
-            "channels": [
-                {
-                    "platform": "telegram",
+            "ok": true,
+            "ts": 1771242097704_u64,
+            "durationMs": 145,
+            "channels": {
+                "telegram": {
                     "status": "connected",
-                    "last_active": "2024-01-15T10:30:00Z",
-                    "error_message": null
+                    "last_active": "2024-01-15T10:30:00Z"
                 }
-            ],
-            "session_count": 3,
-            "probe_duration_ms": 145
+            },
+            "channelOrder": ["telegram"],
+            "sessions": {
+                "count": 3
+            }
         });
 
         let health = HealthService::parse_health_json(json);
 
         assert!(health.gateway_reachable);
-        assert_eq!(health.gateway_mode, "authenticated");
+        assert_eq!(health.gateway_mode, "connected");
         assert_eq!(health.session_count, 3);
         assert_eq!(health.probe_duration_ms, 145);
         assert_eq!(health.channels.len(), 1);
@@ -214,11 +248,12 @@ mod tests {
     #[test]
     fn test_parse_empty_channels() {
         let json = serde_json::json!({
-            "gateway_reachable": true,
-            "gateway_mode": "unauthenticated",
-            "channels": [],
-            "session_count": 0,
-            "probe_duration_ms": 50
+            "ok": true,
+            "durationMs": 50,
+            "channels": {},
+            "sessions": {
+                "count": 0
+            }
         });
 
         let health = HealthService::parse_health_json(json);

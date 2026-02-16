@@ -127,6 +127,7 @@ impl DaemonService {
     ///
     /// Executes `openclaw onboard --install-daemon` using SafeCommand.
     /// Returns Ok on successful installation, Err if command fails.
+    #[allow(dead_code)]
     pub fn install_service() -> Result<()> {
         let output = SafeCommand::run("openclaw", &["onboard", "--install-daemon"])
             .context("Failed to execute 'openclaw onboard --install-daemon'")?;

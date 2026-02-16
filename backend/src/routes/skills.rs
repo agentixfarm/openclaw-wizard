@@ -16,8 +16,8 @@
 //! - Malicious packages return 403 Forbidden
 //! - VT not configured returns None (not an error)
 
-use axum::extract::{Path, Query};
 use axum::Json;
+use axum::extract::{Path, Query};
 use serde::Deserialize;
 
 use crate::error::AppError;
@@ -99,9 +99,7 @@ pub async fn install_skill(
 /// DELETE /api/skills/{name}
 ///
 /// Uninstall a skill via npm.
-pub async fn uninstall_skill(
-    Path(name): Path<String>,
-) -> Result<Json<EmptyResponse>, AppError> {
+pub async fn uninstall_skill(Path(name): Path<String>) -> Result<Json<EmptyResponse>, AppError> {
     let service = SkillsService::new();
 
     service.uninstall_skill(&name).await?;

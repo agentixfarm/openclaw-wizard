@@ -25,6 +25,7 @@ where
 /// Concrete API response with SystemInfo for TypeScript export
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../bindings/")]
+#[allow(dead_code)]
 pub struct SystemInfoResponse {
     pub success: bool,
     pub data: Option<SystemInfo>,
@@ -42,7 +43,6 @@ pub struct EmptyResponse {
 /// WebSocket message envelope
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../bindings/")]
-#[ts(export_to = "../bindings/")]
 pub struct WsMessage {
     pub msg_type: String,
     #[ts(type = "any")]
@@ -104,9 +104,9 @@ pub struct ApiKeyValidationResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../bindings/")]
 pub struct ChannelValidationRequest {
-    pub platform: String,    // "telegram", "discord", "slack"
-    pub token: String,       // Bot token
-    pub app_token: Option<String>,  // For Slack app-level token
+    pub platform: String,          // "telegram", "discord", "slack"
+    pub token: String,             // Bot token
+    pub app_token: Option<String>, // For Slack app-level token
 }
 
 /// Channel token validation response
@@ -126,9 +126,9 @@ pub struct ChannelConfig {
     pub platform: String,
     pub enabled: bool,
     pub bot_token: Option<String>,
-    pub app_token: Option<String>,    // Slack only
-    pub dm_policy: String,            // "allowlist" default
-    pub allowed_users: Vec<String>,   // User IDs or phone numbers
+    pub app_token: Option<String>,  // Slack only
+    pub dm_policy: String,          // "allowlist" default
+    pub allowed_users: Vec<String>, // User IDs or phone numbers
 }
 
 /// Wizard config to save
@@ -168,12 +168,12 @@ pub struct InstallRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Default)]
 #[ts(export, export_to = "../bindings/")]
 pub struct InstallProgress {
-    pub stage: String,           // "node-install", "openclaw-install", "verify"
-    pub status: String,          // "running", "completed", "failed"
-    pub message: String,         // Human-readable progress message
-    pub output_line: Option<String>,  // Raw command output line
-    pub error: Option<String>,   // Error details if failed
-    pub progress_pct: Option<u8>,// Optional percentage (0-100)
+    pub stage: String,               // "node-install", "openclaw-install", "verify"
+    pub status: String,              // "running", "completed", "failed"
+    pub message: String,             // Human-readable progress message
+    pub output_line: Option<String>, // Raw command output line
+    pub error: Option<String>,       // Error details if failed
+    pub progress_pct: Option<u8>,    // Optional percentage (0-100)
 }
 
 // ===== Dashboard Types =====
@@ -194,7 +194,7 @@ pub struct DaemonStatus {
 #[ts(export, export_to = "../bindings/")]
 pub struct ChannelHealth {
     pub platform: String,
-    pub status: String,        // "connected" | "disconnected" | "error"
+    pub status: String, // "connected" | "disconnected" | "error"
     pub last_active: Option<String>,
     pub error_message: Option<String>,
 }
@@ -315,6 +315,7 @@ pub struct SkillMetadata {
 /// Request to search for skills
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../bindings/")]
+#[allow(dead_code)]
 pub struct SkillSearchRequest {
     pub query: Option<String>,
     pub category: Option<SkillCategory>,

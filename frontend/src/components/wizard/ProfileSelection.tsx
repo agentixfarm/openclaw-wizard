@@ -23,12 +23,14 @@ const PROFILES: {
     icon: Globe,
     title: 'Remote Server',
     subtitle: 'Deploy to a VPS via SSH',
+    badge: 'Coming Soon',
   },
   {
     id: 'advanced',
     icon: Layers,
     title: 'Advanced',
     subtitle: 'Multi-server or Docker sandbox',
+    badge: 'Coming Soon',
   },
 ];
 

@@ -4,13 +4,18 @@
 
 use axum::Json;
 
-use crate::models::{ApiKeyValidationRequest, ApiKeyValidationResponse, ApiResponse, EmptyResponse, WizardConfig, InstallRequest, RollbackResult};
-use crate::services::{config::ConfigWriter, platform::Platform, RollbackService};
 use crate::error::AppError;
+use crate::models::{
+    ApiKeyValidationRequest, ApiKeyValidationResponse, ApiResponse, EmptyResponse, InstallRequest,
+    RollbackResult, WizardConfig,
+};
+use crate::services::{RollbackService, config::ConfigWriter, platform::Platform};
 
 /// Validate API key or setup token by testing against provider API.
 /// Anthropic and OpenAI get full API validation; all other providers get format validation only.
-pub async fn validate_api_key(Json(request): Json<ApiKeyValidationRequest>) -> Json<ApiResponse<ApiKeyValidationResponse>> {
+pub async fn validate_api_key(
+    Json(request): Json<ApiKeyValidationRequest>,
+) -> Json<ApiResponse<ApiKeyValidationResponse>> {
     let response = match (request.provider.as_str(), request.auth_type.as_str()) {
         // Skip and OAuth don't need validation
         ("skip", _) | (_, "oauth") | (_, "skip") => ApiKeyValidationResponse {
@@ -44,7 +49,10 @@ fn validate_anthropic_setup_token(token: &str) -> ApiKeyValidationResponse {
     if token.len() < 80 {
         return ApiKeyValidationResponse {
             valid: false,
-            error: Some("Setup token appears too short. Generate a new one with: claude setup-token".to_string()),
+            error: Some(
+                "Setup token appears too short. Generate a new one with: claude setup-token"
+                    .to_string(),
+            ),
         };
     }
     ApiKeyValidationResponse {
@@ -174,11 +182,13 @@ pub async fn save_config(Json(config): Json<WizardConfig>) -> Json<ApiResponse<E
     // Save to wizard's own config dir
     let config_dir = match Platform::config_dir() {
         Ok(dir) => dir,
-        Err(e) => return Json(ApiResponse {
-            success: false,
-            data: None,
-            error: Some(format!("Failed to determine config directory: {}", e)),
-        }),
+        Err(e) => {
+            return Json(ApiResponse {
+                success: false,
+                data: None,
+                error: Some(format!("Failed to determine config directory: {}", e)),
+            });
+        }
     };
 
     let config_path = config_dir.join("openclaw.json");
@@ -217,7 +227,10 @@ pub async fn save_config(Json(config): Json<WizardConfig>) -> Json<ApiResponse<E
             let mut channel_config = serde_json::Map::new();
             channel_config.insert("enabled".to_string(), serde_json::json!(channel.enabled));
             channel_config.insert("dmPolicy".to_string(), serde_json::json!(channel.dm_policy));
-            channel_config.insert("allowFrom".to_string(), serde_json::json!(channel.allowed_users));
+            channel_config.insert(
+                "allowFrom".to_string(),
+                serde_json::json!(channel.allowed_users),
+            );
 
             if let Some(ref token) = channel.bot_token {
                 channel_config.insert("botToken".to_string(), serde_json::json!(token));
@@ -226,10 +239,15 @@ pub async fn save_config(Json(config): Json<WizardConfig>) -> Json<ApiResponse<E
                 channel_config.insert("appToken".to_string(), serde_json::json!(token));
             }
 
-            channels_obj.insert(channel.platform.clone(), serde_json::Value::Object(channel_config));
+            channels_obj.insert(
+                channel.platform.clone(),
+                serde_json::Value::Object(channel_config),
+            );
         }
-        gateway_config.as_object_mut().unwrap()
-            .insert("channels".to_string(), serde_json::Value::Object(channels_obj));
+        gateway_config.as_object_mut().unwrap().insert(
+            "channels".to_string(),
+            serde_json::Value::Object(channels_obj),
+        );
     }
 
     // Deploy to ~/.openclaw/openclaw.json, merging with existing config
@@ -239,11 +257,13 @@ pub async fn save_config(Json(config): Json<WizardConfig>) -> Json<ApiResponse<E
         let target_path = openclaw_dir.join("openclaw.json");
 
         // Read existing config to preserve meta/commands/agents sections
-        let mut existing: serde_json::Value = ConfigWriter::read_json(&target_path)
-            .unwrap_or_else(|_| serde_json::json!({}));
+        let mut existing: serde_json::Value =
+            ConfigWriter::read_json(&target_path).unwrap_or_else(|_| serde_json::json!({}));
 
         // Merge gateway and channels into existing config
-        if let (Some(existing_obj), Some(new_obj)) = (existing.as_object_mut(), gateway_config.as_object()) {
+        if let (Some(existing_obj), Some(new_obj)) =
+            (existing.as_object_mut(), gateway_config.as_object())
+        {
             for (key, value) in new_obj {
                 existing_obj.insert(key.clone(), value.clone());
             }
@@ -263,7 +283,9 @@ pub async fn save_config(Json(config): Json<WizardConfig>) -> Json<ApiResponse<E
 }
 
 /// Start installation (returns acknowledgment, actual progress via WebSocket)
-pub async fn start_install(Json(_request): Json<InstallRequest>) -> Json<ApiResponse<EmptyResponse>> {
+pub async fn start_install(
+    Json(_request): Json<InstallRequest>,
+) -> Json<ApiResponse<EmptyResponse>> {
     Json(ApiResponse {
         success: true,
         data: Some(EmptyResponse {

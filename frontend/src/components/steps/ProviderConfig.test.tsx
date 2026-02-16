@@ -42,7 +42,7 @@ function renderConfigureStep() {
 describe('ConfigureStep (formerly ProviderConfig)', () => {
   test('renders configure step with AI Provider section', () => {
     renderConfigureStep();
-    expect(screen.getAllByText('AI Provider').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/AI Provider|Model \/ Auth Provider/).length).toBeGreaterThan(0);
   });
 
   test('shows Anthropic and OpenAI options', () => {

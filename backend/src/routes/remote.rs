@@ -12,17 +12,17 @@
 //! - Never logs SSH credentials
 
 use axum::{
+    Json,
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
     response::Response,
-    Json,
 };
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
 
 use crate::error::AppError;
 use crate::models::{
-    RemoteInstallRequest, RemoteSetupProgress, SshConnectionRequest, SshConnectionResponse,
-    SshConnection, WizardConfig, WsMessage,
+    RemoteInstallRequest, RemoteSetupProgress, SshConnection, SshConnectionRequest,
+    SshConnectionResponse, WizardConfig, WsMessage,
 };
 use crate::services::remote::RemoteService;
 use crate::services::ssh::SshService;
@@ -64,10 +64,7 @@ pub async fn test_ssh_connection(
             }))
         }
         Ok(false) => {
-            warn!(
-                "SSH auth failed: {}@{}",
-                request.username, request.host
-            );
+            warn!("SSH auth failed: {}@{}", request.username, request.host);
             Ok(Json(SshConnectionResponse {
                 success: false,
                 message: "SSH authentication failed. Check your SSH key and username.".into(),
@@ -108,38 +105,34 @@ async fn handle_remote_install_socket(mut socket: WebSocket) {
 
     // Wait for the first message with installation parameters
     let install_request = match socket.recv().await {
-        Some(Ok(Message::Text(text))) => {
-            match serde_json::from_str::<WsMessage>(&text) {
-                Ok(ws_msg) if ws_msg.msg_type == "start-remote-install" => {
-                    match serde_json::from_value::<RemoteInstallRequest>(ws_msg.payload) {
-                        Ok(req) => req,
-                        Err(e) => {
-                            warn!("Failed to parse RemoteInstallRequest: {}", e);
-                            let _ = send_error_message(
-                                &mut socket,
-                                "Invalid installation request format",
-                            )
-                            .await;
-                            return;
-                        }
+        Some(Ok(Message::Text(text))) => match serde_json::from_str::<WsMessage>(&text) {
+            Ok(ws_msg) if ws_msg.msg_type == "start-remote-install" => {
+                match serde_json::from_value::<RemoteInstallRequest>(ws_msg.payload) {
+                    Ok(req) => req,
+                    Err(e) => {
+                        warn!("Failed to parse RemoteInstallRequest: {}", e);
+                        let _ =
+                            send_error_message(&mut socket, "Invalid installation request format")
+                                .await;
+                        return;
                     }
                 }
-                Ok(ws_msg) => {
-                    warn!("Unexpected message type: {}", ws_msg.msg_type);
-                    let _ = send_error_message(
-                        &mut socket,
-                        &format!("Expected 'start-remote-install', got '{}'", ws_msg.msg_type),
-                    )
-                    .await;
-                    return;
-                }
-                Err(e) => {
-                    warn!("Failed to parse WebSocket message: {}", e);
-                    let _ = send_error_message(&mut socket, "Invalid JSON message format").await;
-                    return;
-                }
             }
-        }
+            Ok(ws_msg) => {
+                warn!("Unexpected message type: {}", ws_msg.msg_type);
+                let _ = send_error_message(
+                    &mut socket,
+                    &format!("Expected 'start-remote-install', got '{}'", ws_msg.msg_type),
+                )
+                .await;
+                return;
+            }
+            Err(e) => {
+                warn!("Failed to parse WebSocket message: {}", e);
+                let _ = send_error_message(&mut socket, "Invalid JSON message format").await;
+                return;
+            }
+        },
         Some(Ok(Message::Close(_))) | None => {
             info!("Remote install WebSocket closed before install request");
             return;
@@ -251,10 +244,7 @@ fn load_wizard_config() -> anyhow::Result<WizardConfig> {
         .as_str()
         .unwrap_or("anthropic")
         .to_string();
-    let api_key = raw["ai"]["apiKey"]
-        .as_str()
-        .unwrap_or("")
-        .to_string();
+    let api_key = raw["ai"]["apiKey"].as_str().unwrap_or("").to_string();
     let auth_type = match raw["ai"]["auth"].as_str().unwrap_or("api-key") {
         "token" => "setup-token".to_string(),
         other => other.to_string(),
@@ -280,6 +270,11 @@ fn load_wizard_config() -> anyhow::Result<WizardConfig> {
         gateway_bind,
         auth_mode,
         auth_credential,
-        channels: None, // Channels loaded separately if needed
+        channels: None,
+        base_url: None,
+        model_id: None,
+        compatibility: None,
+        account_id: None,
+        gateway_id: None,
     })
 }

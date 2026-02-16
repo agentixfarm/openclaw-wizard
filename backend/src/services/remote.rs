@@ -23,8 +23,7 @@ use crate::models::{RemoteSetupProgress, WizardConfig};
 use crate::services::ssh::SshService;
 
 /// NVM install script URL
-const NVM_INSTALL_URL: &str =
-    "https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh";
+const NVM_INSTALL_URL: &str = "https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh";
 
 /// Minimum required Node.js major version
 const MIN_NODE_MAJOR: u32 = 22;
@@ -85,7 +84,10 @@ impl RemoteService {
         )
         .await;
 
-        info!("Remote OpenClaw installation completed on {}@{}", user, host);
+        info!(
+            "Remote OpenClaw installation completed on {}@{}",
+            user, host
+        );
         Ok(())
     }
 
@@ -612,6 +614,11 @@ mod tests {
             auth_mode: "none".into(),
             auth_credential: None,
             channels: None,
+            base_url: None,
+            model_id: None,
+            compatibility: None,
+            account_id: None,
+            gateway_id: None,
         };
 
         let result = RemoteService::build_openclaw_config(&config).unwrap();
@@ -640,6 +647,11 @@ mod tests {
                 dm_policy: "allowlist".into(),
                 allowed_users: vec!["user1".into()],
             }]),
+            base_url: None,
+            model_id: None,
+            compatibility: None,
+            account_id: None,
+            gateway_id: None,
         };
 
         let result = RemoteService::build_openclaw_config(&config).unwrap();

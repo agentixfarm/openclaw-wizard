@@ -22,6 +22,7 @@ export function useHealthMonitor() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
     const interval = setInterval(refresh, 10000); // Poll every 10 seconds
     return () => clearInterval(interval);

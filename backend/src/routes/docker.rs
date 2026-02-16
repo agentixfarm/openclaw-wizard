@@ -13,8 +13,8 @@
 //! - Container limit of 5 enforced at service layer
 //! - Docker-not-available returns 200 with available: false (not an error)
 
-use axum::extract::{Path, Query};
 use axum::Json;
+use axum::extract::{Path, Query};
 use serde::Deserialize;
 
 use crate::error::AppError;
@@ -83,9 +83,7 @@ pub async fn create_container(
 /// POST /api/docker/{id}/stop
 ///
 /// Stops a running container with a 10-second timeout.
-pub async fn stop_container(
-    Path(id): Path<String>,
-) -> Result<Json<EmptyResponse>, AppError> {
+pub async fn stop_container(Path(id): Path<String>) -> Result<Json<EmptyResponse>, AppError> {
     let service = DockerService::new();
 
     service.stop_container(&id).await?;
@@ -99,9 +97,7 @@ pub async fn stop_container(
 /// DELETE /api/docker/{id}
 ///
 /// Force removes a container (also stops it if running).
-pub async fn remove_container(
-    Path(id): Path<String>,
-) -> Result<Json<EmptyResponse>, AppError> {
+pub async fn remove_container(Path(id): Path<String>) -> Result<Json<EmptyResponse>, AppError> {
     let service = DockerService::new();
 
     service.remove_container(&id).await?;

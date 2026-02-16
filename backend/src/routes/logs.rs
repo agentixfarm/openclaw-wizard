@@ -8,10 +8,10 @@ use crate::models::types::{ApiResponse, LogAnalysis, LogAnalysisRequest, LogsRes
 use crate::services::log_analyzer::LogAnalyzer;
 use crate::services::log_service::LogService;
 use axum::{
-    extract::ws::{Message, WebSocket, WebSocketUpgrade},
-    extract::Query,
-    response::Response,
     Json,
+    extract::Query,
+    extract::ws::{Message, WebSocket, WebSocketUpgrade},
+    response::Response,
 };
 use serde::Deserialize;
 use tracing::{info, warn};
@@ -99,10 +99,7 @@ async fn handle_log_socket(mut socket: WebSocket) {
         Some(Ok(Message::Text(text))) => {
             // Try JSON format: { "service": "gateway" }
             if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&text) {
-                parsed["service"]
-                    .as_str()
-                    .unwrap_or("gateway")
-                    .to_string()
+                parsed["service"].as_str().unwrap_or("gateway").to_string()
             } else {
                 text.trim().to_string()
             }

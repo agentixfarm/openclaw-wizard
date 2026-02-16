@@ -9,6 +9,7 @@ type InstallStatus = 'idle' | 'running' | 'completed' | 'failed';
 interface StreamingOutputState {
   output: string[];
   currentStage: string;
+  currentMessage: string;
   status: InstallStatus;
   error: string | null;
   progressPct: number | null;
@@ -22,6 +23,7 @@ interface StreamingOutputState {
 export function useStreamingOutput(): StreamingOutputState {
   const [output, setOutput] = useState<string[]>([]);
   const [currentStage, setCurrentStage] = useState<string>('');
+  const [currentMessage, setCurrentMessage] = useState<string>('');
   const [status, setStatus] = useState<InstallStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const [progressPct, setProgressPct] = useState<number | null>(null);
@@ -46,8 +48,9 @@ export function useStreamingOutput(): StreamingOutputState {
         if (message.msg_type === 'install-progress') {
           const progress = message.payload as unknown as InstallProgress;
 
-          // Update stage and status
+          // Update stage, status, and message
           setCurrentStage(progress.stage);
+          setCurrentMessage(progress.message || '');
           setStatus(progress.status as InstallStatus);
           setProgressPct(progress.progress_pct ?? null);
 
@@ -97,6 +100,7 @@ export function useStreamingOutput(): StreamingOutputState {
     // Reset state
     setOutput([]);
     setCurrentStage('');
+    setCurrentMessage('');
     setStatus('running');
     setError(null);
     setProgressPct(null);
@@ -104,7 +108,7 @@ export function useStreamingOutput(): StreamingOutputState {
     // Send install request via WebSocket
     const message: WsMessage = {
       msg_type: 'start-install',
-      payload: request as any,
+      payload: request as unknown,
     };
 
     wsClient.current.send(JSON.stringify(message));
@@ -113,6 +117,7 @@ export function useStreamingOutput(): StreamingOutputState {
   return {
     output,
     currentStage,
+    currentMessage,
     status,
     error,
     progressPct,

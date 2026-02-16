@@ -150,8 +150,8 @@ export function useLogViewer() {
         service,
       });
       setAnalysis(result);
-    } catch (error: any) {
-      setAnalysisError(error.message || 'Analysis failed');
+    } catch (error: unknown) {
+      setAnalysisError(error instanceof Error ? error.message : 'Analysis failed');
     } finally {
       setAnalyzing(false);
     }

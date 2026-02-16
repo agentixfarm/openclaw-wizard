@@ -4,13 +4,13 @@
 //! Connects to the local Docker daemon via bollard and provides
 //! container CRUD operations for the OpenClaw sandbox mode.
 
+use bollard::Docker;
 use bollard::container::LogOutput;
 use bollard::models::{ContainerCreateBody, HostConfig, PortBinding};
 use bollard::query_parameters::{
     CreateContainerOptions, ListContainersOptions, LogsOptions, RemoveContainerOptions,
     StopContainerOptions,
 };
-use bollard::Docker;
 use futures::StreamExt;
 use std::collections::HashMap;
 use tracing::{error, info, warn};
@@ -32,6 +32,12 @@ const OPENCLAW_LABEL: &str = "openclaw-wizard";
 
 pub struct DockerService {
     client: Option<Docker>,
+}
+
+impl Default for DockerService {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DockerService {
@@ -125,10 +131,9 @@ impl DockerService {
             ..Default::default()
         };
 
-        let containers = client
-            .list_containers(Some(options))
-            .await
-            .map_err(|e| AppError::DockerOperationFailed(format!("Failed to list containers: {}", e)))?;
+        let containers = client.list_containers(Some(options)).await.map_err(|e| {
+            AppError::DockerOperationFailed(format!("Failed to list containers: {}", e))
+        })?;
 
         let result: Vec<ContainerInfo> = containers
             .into_iter()
@@ -147,26 +152,19 @@ impl DockerService {
                 };
 
                 // Extract the mapped host port for container port 3000
-                let port = c
-                    .ports
-                    .as_ref()
-                    .and_then(|ports| {
-                        ports.iter().find_map(|p| {
-                            if p.private_port == 3000 {
-                                p.public_port
-                            } else {
-                                None
-                            }
-                        })
-                    });
+                let port = c.ports.as_ref().and_then(|ports| {
+                    ports.iter().find_map(|p| {
+                        if p.private_port == 3000 {
+                            p.public_port
+                        } else {
+                            None
+                        }
+                    })
+                });
 
                 let name = c
                     .names
-                    .and_then(|names| {
-                        names
-                            .first()
-                            .map(|n| n.trim_start_matches('/').to_string())
-                    })
+                    .and_then(|names| names.first().map(|n| n.trim_start_matches('/').to_string()))
                     .unwrap_or_default();
 
                 let created_at = c
@@ -236,9 +234,9 @@ impl DockerService {
         // Strict security HostConfig
         let host_config = HostConfig {
             memory: Some(512 * 1024 * 1024),      // 512MB
-            memory_swap: Some(512 * 1024 * 1024),  // No swap (same as memory)
-            nano_cpus: Some(1_000_000_000),         // 1 CPU
-            pids_limit: Some(100),                  // Prevent fork bombs
+            memory_swap: Some(512 * 1024 * 1024), // No swap (same as memory)
+            nano_cpus: Some(1_000_000_000),       // 1 CPU
+            pids_limit: Some(100),                // Prevent fork bombs
             security_opt: Some(vec!["no-new-privileges:true".to_string()]),
             cap_drop: Some(vec!["ALL".to_string()]),
             cap_add: Some(vec!["NET_BIND_SERVICE".to_string()]),
@@ -284,10 +282,7 @@ impl DockerService {
         let container_id = create_response.id.clone();
 
         // Start the container
-        if let Err(e) = client
-            .start_container(&container_id, None)
-            .await
-        {
+        if let Err(e) = client.start_container(&container_id, None).await {
             error!("Failed to start container {}: {}", container_id, e);
             // Attempt to remove the failed container
             let _ = client

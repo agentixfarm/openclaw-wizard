@@ -2,7 +2,6 @@
 //!
 //! Detects existing OpenClaw installations and configurations.
 
-use anyhow::Result;
 use std::path::PathBuf;
 
 use crate::models::OpenClawDetection;
@@ -26,11 +25,7 @@ impl DetectionService {
         let (installed, version, install_path) = match SafeCommand::run(which_cmd, &["openclaw"]) {
             Ok(output) if output.exit_code == 0 => {
                 let path = output.stdout.trim().to_string();
-                let install_path = if !path.is_empty() {
-                    Some(path)
-                } else {
-                    None
-                };
+                let install_path = if !path.is_empty() { Some(path) } else { None };
 
                 // Get version
                 let version = match SafeCommand::run("openclaw", &["--version"]) {
@@ -47,7 +42,9 @@ impl DetectionService {
 
         // Check common config locations
         let config_locations = vec![
-            Platform::home_dir().ok().map(|h| h.join(".openclaw").join("openclaw.json")),
+            Platform::home_dir()
+                .ok()
+                .map(|h| h.join(".openclaw").join("openclaw.json")),
             Some(PathBuf::from("./openclaw.json")),
         ];
 

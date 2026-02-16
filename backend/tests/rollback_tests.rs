@@ -3,8 +3,8 @@
 //! Tests run against the real system, so daemon/config may or may not be present.
 //! Tests handle both cases gracefully.
 
-use openclaw_wizard::services::RollbackService;
 use openclaw_wizard::models::types::{RollbackResult, RollbackStage};
+use openclaw_wizard::services::RollbackService;
 
 #[tokio::test]
 async fn test_rollback_result_structure() {
@@ -78,8 +78,7 @@ fn test_rollback_result_serializes() {
     };
 
     let json = serde_json::to_string(&result).expect("should serialize to JSON");
-    let parsed: RollbackResult =
-        serde_json::from_str(&json).expect("should deserialize from JSON");
+    let parsed: RollbackResult = serde_json::from_str(&json).expect("should deserialize from JSON");
 
     assert_eq!(parsed.success, true);
     assert_eq!(parsed.stages.len(), 3);

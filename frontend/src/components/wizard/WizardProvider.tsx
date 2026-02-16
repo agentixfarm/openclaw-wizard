@@ -21,7 +21,7 @@ interface WizardContextValue {
   nextStep: () => void;
   prevStep: () => void;
   goToStep: (step: number) => void;
-  updateFormData: (stepKey: keyof WizardFormData, data: any) => void;
+  updateFormData: (stepKey: keyof WizardFormData, data: WizardFormData[keyof WizardFormData]) => void;
   resetWizard: () => void;
   setProfile: (profile: DeploymentProfile, mode?: PowerUserMode) => void;
 }
@@ -49,6 +49,7 @@ export function WizardProvider({ children }: WizardProviderProps) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useWizard(): WizardContextValue {
   const context = useContext(WizardContext);
 

@@ -143,12 +143,14 @@ Plans:
 4. Codebase has test coverage with passing Rust unit tests, Vitest component tests, and E2E tests
 5. Project is published as open source with MIT license on npm and crates.io with CI/CD pipeline
 
-**Plans**: TBD
+**Plans**: 5 plans in 3 waves
 
 Plans:
-- [ ] 09-01: TBD
-- [ ] 09-02: TBD
-- [ ] 09-03: TBD
+- [ ] 09-01-PLAN.md — Dark/Light Theme & Branding (ThemeProvider, ThemeToggle, AsciiLogo, dark mode Tailwind variants for wizard + dashboard)
+- [ ] 09-02-PLAN.md — Error Recovery & Rollback (RollbackService, rollback endpoint, useRollback hook, enhanced ErrorRecovery with guided messages)
+- [ ] 09-03-PLAN.md — Vitest Frontend Tests (Vitest config, msw API mocking, 6+ test files for components/hooks/theme, 20+ tests)
+- [ ] 09-04-PLAN.md — Rust Integration Tests (axum-test, API route handler tests, rollback integration tests, 15+ tests)
+- [ ] 09-05-PLAN.md — E2E Tests & Open Source Publishing (Playwright MCP E2E scripts, GitHub Actions CI/CD, MIT license, npm + crates.io metadata)
 
 ## Progress
 
@@ -162,8 +164,8 @@ Plans:
 | 6. Docker & Skills Management | v1.1 | 5/5 | ✓ Complete | 2026-02-15 |
 | 7. Service Management & Logs | v1.1 | 5/5 | ✓ Complete | 2026-02-16 |
 | 8. Intelligence & Multi-Server | v1.1 | 5/5 | ✓ Complete | 2026-02-16 |
-| 9. Production Quality | v1.1 | 0/TBD | Not started | - |
+| 9. Production Quality | v1.1 | 0/5 | Planning complete | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-16 — Phase 8 execution complete (5/5 plans, verified)*
+*Last updated: 2026-02-16 — Phase 9 planning complete (5 plans in 3 waves)*

@@ -47,6 +47,12 @@ const server = setupServer(
       error: null,
     })
   ),
+  http.get('/api/dashboard/config', () =>
+    HttpResponse.json({ success: true, data: { gateway: { port: 18789 } }, error: null })
+  ),
+  http.get('/api/dashboard/chat-url', () =>
+    HttpResponse.json({ success: true, data: { url: 'http://127.0.0.1:18789/#token=test' }, error: null })
+  ),
 );
 
 beforeAll(() => server.listen());
@@ -71,19 +77,19 @@ describe('DashboardLayout', () => {
   test('shows tab navigation', () => {
     renderDashboard();
     expect(screen.getByText('Overview')).toBeInTheDocument();
-    expect(screen.getByText('Config')).toBeInTheDocument();
     expect(screen.getByText('Skills')).toBeInTheDocument();
     expect(screen.getByText('Logs')).toBeInTheDocument();
-    expect(screen.getByText('Intelligence')).toBeInTheDocument();
+    expect(screen.getByText('Cost Optimization')).toBeInTheDocument();
+    expect(screen.getByText('Settings')).toBeInTheDocument();
+    expect(screen.getByText('Advanced')).toBeInTheDocument();
   });
 
   test('renders status cards with service names', async () => {
     renderDashboard();
-    // Use getAllByText since "Gateway" and "Daemon" appear in multiple contexts (status cards + service controls)
+    // Gateway appears in status card + service controls
     await waitFor(() => {
       expect(screen.getAllByText(/Gateway/i).length).toBeGreaterThan(0);
     });
-    expect(screen.getAllByText(/Daemon/i).length).toBeGreaterThan(0);
     expect(screen.getByText('System')).toBeInTheDocument();
   });
 
@@ -96,13 +102,13 @@ describe('DashboardLayout', () => {
     const user = userEvent.setup();
     renderDashboard();
 
-    const intelligenceTab = screen.getByText('Intelligence');
-    await user.click(intelligenceTab);
+    const costTab = screen.getByText('Cost Optimization');
+    await user.click(costTab);
 
-    // Intelligence tab has sub-tabs -- use getAllByText since label appears in both tab and content
+    // Cost Optimization tab should show the model configuration section
     await waitFor(() => {
-      expect(screen.getAllByText(/Cost Optimization/).length).toBeGreaterThan(0);
+      expect(screen.getByText('Model Configuration')).toBeInTheDocument();
     });
-    expect(screen.getAllByText(/Security Audit/).length).toBeGreaterThan(0);
+    expect(screen.getByText('Heartbeat Settings')).toBeInTheDocument();
   });
 });

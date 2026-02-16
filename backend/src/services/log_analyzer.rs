@@ -101,12 +101,13 @@ impl LogAnalyzer {
         let result = match self.provider.to_lowercase().as_str() {
             "anthropic" => self.call_anthropic(&prompt).await,
             "openai" => self.call_openai(&prompt).await,
-            _ => Err(anyhow::anyhow!("Unsupported AI provider: {}", self.provider)),
+            _ => Err(anyhow::anyhow!(
+                "Unsupported AI provider: {}",
+                self.provider
+            )),
         };
 
-        result.map_err(|e| {
-            AppError::InternalError(format!("AI analysis failed: {}", e))
-        })
+        result.map_err(|e| AppError::InternalError(format!("AI analysis failed: {}", e)))
     }
 
     /// Redact sensitive information from log text
@@ -243,16 +244,28 @@ impl LogAnalyzer {
     fn extract_ai_config(config: &serde_json::Value) -> Option<(String, String)> {
         // Pattern 1: ai.provider / ai.apiKey
         if let (Some(provider), Some(key)) = (
-            config.get("ai").and_then(|ai| ai.get("provider")).and_then(|v| v.as_str()),
-            config.get("ai").and_then(|ai| ai.get("apiKey")).and_then(|v| v.as_str()),
+            config
+                .get("ai")
+                .and_then(|ai| ai.get("provider"))
+                .and_then(|v| v.as_str()),
+            config
+                .get("ai")
+                .and_then(|ai| ai.get("apiKey"))
+                .and_then(|v| v.as_str()),
         ) {
             return Some((provider.to_string(), key.to_string()));
         }
 
         // Pattern 2: ai.provider / ai.api_key
         if let (Some(provider), Some(key)) = (
-            config.get("ai").and_then(|ai| ai.get("provider")).and_then(|v| v.as_str()),
-            config.get("ai").and_then(|ai| ai.get("api_key")).and_then(|v| v.as_str()),
+            config
+                .get("ai")
+                .and_then(|ai| ai.get("provider"))
+                .and_then(|v| v.as_str()),
+            config
+                .get("ai")
+                .and_then(|ai| ai.get("api_key"))
+                .and_then(|v| v.as_str()),
         ) {
             return Some((provider.to_string(), key.to_string()));
         }

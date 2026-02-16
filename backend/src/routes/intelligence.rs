@@ -21,19 +21,22 @@ use crate::services::security_auditor::SecurityAuditor;
 /// Analyzes the user's OpenClaw configuration for cost optimization
 /// opportunities using the configured AI provider.
 pub async fn analyze_cost() -> Result<Json<ApiResponse<CostAnalysis>>, AppError> {
-    let analyzer = ConfigAnalyzer::from_config()
-        .ok_or_else(|| AppError::AiProviderNotConfigured(
+    let analyzer = ConfigAnalyzer::from_config().ok_or_else(|| {
+        AppError::AiProviderNotConfigured(
             "No AI provider configured. Complete the setup wizard first.".to_string(),
-        ))?;
+        )
+    })?;
 
     // Read the current config
-    let home = std::env::var("HOME")
-        .map_err(|_| AppError::InternalError("HOME not set".to_string()))?;
+    let home =
+        std::env::var("HOME").map_err(|_| AppError::InternalError("HOME not set".to_string()))?;
     let config_path = std::path::PathBuf::from(format!("{}/.openclaw/openclaw.json", home));
     let config: serde_json::Value = ConfigWriter::read_json(&config_path)
         .map_err(|e| AppError::InternalError(format!("Failed to read config: {}", e)))?;
 
-    let analysis = analyzer.analyze_cost(&config).await
+    let analysis = analyzer
+        .analyze_cost(&config)
+        .await
         .map_err(|e| AppError::ConfigAnalysisFailed(e.to_string()))?;
 
     Ok(Json(ApiResponse {

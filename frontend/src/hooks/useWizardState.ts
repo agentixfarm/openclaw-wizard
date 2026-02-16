@@ -44,6 +44,8 @@ export function useWizardState() {
           localStorage.removeItem(STORAGE_KEY);
           return;
         }
+        // Loading persisted state from localStorage on mount
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setCurrentStep(parsed.currentStep);
         setFormData(parsed.formData);
         setCompletedSteps(new Set(parsed.completedSteps));
@@ -152,23 +154,25 @@ export function useWizardState() {
 
   // Update form data for a specific step
   const updateFormData = useCallback(
-    (stepKey: keyof WizardFormData, data: any) => {
-      const newFormData = {
-        ...formData,
-        [stepKey]: data,
-      };
+    (stepKey: keyof WizardFormData, data: WizardFormData[keyof WizardFormData]) => {
+      setFormData((prevFormData) => {
+        const newFormData = {
+          ...prevFormData,
+          [stepKey]: data,
+        };
 
-      setFormData(newFormData);
+        persistState({
+          currentStep,
+          formData: newFormData,
+          completedSteps,
+          deploymentProfile,
+          powerUserMode,
+        });
 
-      persistState({
-        currentStep,
-        formData: newFormData,
-        completedSteps,
-        deploymentProfile,
-        powerUserMode,
+        return newFormData;
       });
     },
-    [formData, currentStep, completedSteps, deploymentProfile, powerUserMode, persistState]
+    [currentStep, completedSteps, deploymentProfile, powerUserMode, persistState]
   );
 
   // Reset wizard to initial state

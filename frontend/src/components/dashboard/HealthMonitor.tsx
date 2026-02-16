@@ -3,6 +3,7 @@ import { CheckCircle, XCircle, Loader2, RefreshCw, AlertTriangle, MessageSquare 
 import { formatDistanceToNow } from 'date-fns';
 import { api } from '../../api/client';
 import type { HealthSnapshot } from '../../types/HealthSnapshot';
+import { WhatsAppModal } from './WhatsAppModal';
 
 interface HealthMonitorProps {
   health: HealthSnapshot | null;
@@ -15,6 +16,7 @@ interface HealthMonitorProps {
  */
 export function HealthMonitor({ health, gatewayRunning, onRefresh }: HealthMonitorProps) {
   const [reconnecting, setReconnecting] = useState(false);
+  const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
 
   if (!health) {
     return (
@@ -185,16 +187,16 @@ export function HealthMonitor({ health, gatewayRunning, onRefresh }: HealthMonit
 
         {/* Quick WhatsApp Connection */}
         <button
-          onClick={() => {
-            /* TODO: Implement WhatsApp QR code modal */
-            alert('WhatsApp QR code connection - Coming soon!');
-          }}
+          onClick={() => setWhatsappModalOpen(true)}
           className="inline-flex items-center gap-2 px-4 py-2 bg-sky-400/60 text-white text-sm font-medium rounded-md hover:bg-sky-500/70 transition-colors"
         >
           <MessageSquare className="w-4 h-4" />
           Connect WhatsApp
         </button>
       </div>
+
+      {/* WhatsApp Modal */}
+      <WhatsAppModal isOpen={whatsappModalOpen} onClose={() => setWhatsappModalOpen(false)} />
     </div>
   );
 }

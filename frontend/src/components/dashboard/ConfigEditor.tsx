@@ -138,11 +138,11 @@ export function ConfigEditor() {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
       {/* Gateway Settings Section */}
       <section>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Gateway Settings</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Gateway Settings</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Port */}
           <div>
-            <label htmlFor="gateway-port" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="gateway-port" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Port
             </label>
             <input
@@ -158,7 +158,7 @@ export function ConfigEditor() {
 
           {/* Bind Address */}
           <div>
-            <label htmlFor="gateway-bind" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="gateway-bind" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Bind Address
             </label>
             <input
@@ -174,7 +174,7 @@ export function ConfigEditor() {
 
           {/* Auth Type */}
           <div>
-            <label htmlFor="auth-type" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="auth-type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Auth Type
             </label>
             <select
@@ -192,7 +192,7 @@ export function ConfigEditor() {
 
           {/* Auth Credential */}
           <div>
-            <label htmlFor="auth-credential" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="auth-credential" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Auth Credential
             </label>
             <input
@@ -210,11 +210,11 @@ export function ConfigEditor() {
 
       {/* Provider Settings Section */}
       <section>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Provider Settings</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Provider Settings</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Provider Name */}
           <div>
-            <label htmlFor="provider-name" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="provider-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Provider Name
             </label>
             <input
@@ -231,7 +231,7 @@ export function ConfigEditor() {
 
           {/* API Key */}
           <div>
-            <label htmlFor="provider-key" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="provider-key" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               API Key
             </label>
             <input
@@ -249,7 +249,7 @@ export function ConfigEditor() {
 
       {/* Channels Section */}
       <section>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Channels</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Channels</h3>
         <ChannelManager channels={channels} onChange={handleChannelsChange} />
       </section>
 

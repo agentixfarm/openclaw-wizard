@@ -74,15 +74,19 @@ jobs:
       - name: Package (unix)
         if: runner.os != 'Windows'
         run: |
-          cp backend/target/${{ matrix.target }}/release/openclaw-wizard ${{ matrix.artifact }}
-          chmod +x ${{ matrix.artifact }}
-          tar czf ${{ matrix.artifact }}.tar.gz ${{ matrix.artifact }}
+          mkdir -p package
+          cp backend/target/${{ matrix.target }}/release/openclaw-wizard package/openclaw-wizard
+          cp -r backend/static package/static
+          chmod +x package/openclaw-wizard
+          tar czf ${{ matrix.artifact }}.tar.gz -C package .
 
       - name: Package (windows)
         if: runner.os == 'Windows'
         run: |
-          copy backend\target\${{ matrix.target }}\release\openclaw-wizard.exe ${{ matrix.artifact }}
-          Compress-Archive -Path ${{ matrix.artifact }} -DestinationPath ${{ matrix.artifact }}.zip
+          New-Item -ItemType Directory -Force -Path package
+          copy backend\target\${{ matrix.target }}\release\openclaw-wizard.exe package\openclaw-wizard.exe
+          Copy-Item -Recurse backend\static package\static
+          Compress-Archive -Path package\* -DestinationPath ${{ matrix.artifact }}.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

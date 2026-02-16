@@ -93,6 +93,45 @@ describe('useWizardState', () => {
     expect(result.current.formData.systemCheck).toEqual({ acknowledged: true });
   });
 
+  test('merges sequential form updates without dropping previous fields', () => {
+    const { result } = renderHook(() => useWizardState());
+    act(() => {
+      result.current.updateFormData('providerConfig', {
+        provider: 'anthropic',
+        authType: 'setup-token',
+        apiKey: 'sk-ant-oat01-test-token-value',
+      });
+      result.current.updateFormData('gatewayConfig', {
+        port: 18789,
+        bind: 'loopback',
+        authMode: 'token',
+        authCredential: 'gateway-token',
+      });
+      result.current.updateFormData('advancedConfig', {
+        bindMode: 'localhost',
+        authMode: 'none',
+        tailscaleEnabled: false,
+      });
+    });
+
+    expect(result.current.formData.providerConfig).toEqual({
+      provider: 'anthropic',
+      authType: 'setup-token',
+      apiKey: 'sk-ant-oat01-test-token-value',
+    });
+    expect(result.current.formData.gatewayConfig).toEqual({
+      port: 18789,
+      bind: 'loopback',
+      authMode: 'token',
+      authCredential: 'gateway-token',
+    });
+    expect(result.current.formData.advancedConfig).toEqual({
+      bindMode: 'localhost',
+      authMode: 'none',
+      tailscaleEnabled: false,
+    });
+  });
+
   test('marks steps as completed', () => {
     const { result } = renderHook(() => useWizardState());
     act(() => {

@@ -12,17 +12,20 @@
 //! - GET    /ws/multi-server/deploy — WebSocket for deployment progress
 
 use axum::{
-    extract::{ws::{Message, WebSocket, WebSocketUpgrade}, Path},
-    response::Response,
     Json,
+    extract::{
+        Path,
+        ws::{Message, WebSocket, WebSocketUpgrade},
+    },
+    response::Response,
 };
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
 
 use crate::error::AppError;
 use crate::models::types::{
-    ApiResponse, EmptyResponse, MultiServerDeployRequest, MultiServerProgress,
-    ServerDeployResult, ServerListResponse, ServerTarget, ServerTestResult, WizardConfig, WsMessage,
+    ApiResponse, EmptyResponse, MultiServerDeployRequest, MultiServerProgress, ServerDeployResult,
+    ServerListResponse, ServerTarget, ServerTestResult, WizardConfig, WsMessage,
 };
 use crate::services::multi_server::MultiServerOrchestrator;
 
@@ -59,9 +62,7 @@ pub async fn add_server(
 /// DELETE /api/multi-server/servers/{id}
 ///
 /// Remove a server target by ID.
-pub async fn remove_server(
-    Path(id): Path<String>,
-) -> Result<Json<EmptyResponse>, AppError> {
+pub async fn remove_server(Path(id): Path<String>) -> Result<Json<EmptyResponse>, AppError> {
     MultiServerOrchestrator::remove_server(&id)
         .map_err(|e| AppError::ServerNotFound(e.to_string()))?;
 
@@ -77,7 +78,8 @@ pub async fn remove_server(
 pub async fn test_server(
     Path(id): Path<String>,
 ) -> Result<Json<ApiResponse<ServerTestResult>>, AppError> {
-    let result = MultiServerOrchestrator::test_server(&id).await
+    let result = MultiServerOrchestrator::test_server(&id)
+        .await
         .map_err(|e| AppError::ServerNotFound(e.to_string()))?;
 
     Ok(Json(ApiResponse {
@@ -93,7 +95,8 @@ pub async fn test_server(
 pub async fn rollback_server(
     Path(id): Path<String>,
 ) -> Result<Json<ApiResponse<ServerDeployResult>>, AppError> {
-    let result = MultiServerOrchestrator::rollback_server(&id).await
+    let result = MultiServerOrchestrator::rollback_server(&id)
+        .await
         .map_err(|e| AppError::DeploymentFailed(e.to_string()))?;
 
     Ok(Json(ApiResponse {
@@ -123,8 +126,12 @@ async fn handle_multi_server_deploy_socket(mut socket: WebSocket) {
                 match serde_json::from_value::<MultiServerDeployRequest>(ws_msg.payload) {
                     Ok(req) => req,
                     Err(e) => {
-                        warn!("Failed to parse MultiServerDeployRequest from WsMessage: {}", e);
-                        let _ = send_deploy_error(&mut socket, "Invalid deployment request format").await;
+                        warn!(
+                            "Failed to parse MultiServerDeployRequest from WsMessage: {}",
+                            e
+                        );
+                        let _ = send_deploy_error(&mut socket, "Invalid deployment request format")
+                            .await;
                         return;
                     }
                 }
@@ -245,10 +252,7 @@ fn load_wizard_config_for_deploy() -> anyhow::Result<WizardConfig> {
         .as_str()
         .unwrap_or("anthropic")
         .to_string();
-    let api_key = raw["ai"]["apiKey"]
-        .as_str()
-        .unwrap_or("")
-        .to_string();
+    let api_key = raw["ai"]["apiKey"].as_str().unwrap_or("").to_string();
     let auth_type = match raw["ai"]["auth"].as_str().unwrap_or("api-key") {
         "token" => "setup-token".to_string(),
         other => other.to_string(),

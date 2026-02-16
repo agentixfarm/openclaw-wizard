@@ -4,6 +4,7 @@ interface StreamingOutputProps {
   output: string[];
   maxLines?: number;
   stage?: string;
+  message?: string;
   progressPct?: number | null;
 }
 
@@ -14,6 +15,7 @@ export function StreamingOutput({
   output,
   maxLines = 100,
   stage,
+  message,
   progressPct,
 }: StreamingOutputProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -28,17 +30,21 @@ export function StreamingOutput({
   const displayedOutput = output.slice(-maxLines);
   const hiddenLines = output.length - displayedOutput.length;
 
+  // Stage display labels
+  const stageLabel = stage === 'node-install'
+    ? 'Installing Node.js'
+    : stage === 'openclaw-install'
+    ? 'Installing OpenClaw'
+    : stage === 'verify'
+    ? 'Verifying Installation'
+    : stage || '';
+
   return (
     <div className="space-y-2">
       {/* Progress header */}
       {stage && (
         <div className="flex items-center justify-between text-sm">
-          <div className="font-medium text-gray-700">
-            {stage === 'node-install' && 'Installing Node.js'}
-            {stage === 'openclaw-install' && 'Installing OpenClaw'}
-            {stage === 'verify' && 'Verifying Installation'}
-            {!['node-install', 'openclaw-install', 'verify'].includes(stage) && stage}
-          </div>
+          <div className="font-medium text-gray-300">{stageLabel}</div>
           {progressPct !== null && progressPct !== undefined && (
             <div className="text-gray-500">{progressPct}%</div>
           )}
@@ -47,7 +53,7 @@ export function StreamingOutput({
 
       {/* Progress bar */}
       {progressPct !== null && progressPct !== undefined && (
-        <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className="w-full bg-zinc-700 rounded-full h-2">
           <div
             className="bg-blue-600 h-2 rounded-full transition-all duration-300"
             style={{ width: `${progressPct}%` }}
@@ -66,13 +72,23 @@ export function StreamingOutput({
           </div>
         )}
         {displayedOutput.length === 0 ? (
-          <div className="text-gray-500">Waiting for output...</div>
+          <div className="text-gray-500">
+            {message || 'Waiting for output...'}
+          </div>
         ) : (
-          displayedOutput.map((line, index) => (
-            <div key={index} className="whitespace-pre-wrap break-words">
-              {line}
-            </div>
-          ))
+          <>
+            {displayedOutput.map((line, index) => (
+              <div key={index} className="whitespace-pre-wrap break-words">
+                {line}
+              </div>
+            ))}
+            {/* Show current activity as a dimmed status line */}
+            {message && (
+              <div className="text-gray-600 mt-1 animate-pulse">
+                {message}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

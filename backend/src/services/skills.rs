@@ -33,6 +33,7 @@ static LAST_VT_REQUEST: AtomicU64 = AtomicU64::new(0);
 
 /// npm registry search response
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct NpmSearchResponse {
     objects: Vec<NpmSearchObject>,
     total: u32,
@@ -54,6 +55,7 @@ struct NpmPackage {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct NpmLinks {
     npm: Option<String>,
     homepage: Option<String>,
@@ -99,11 +101,19 @@ pub struct SkillsService {
     vt_api_key: Option<String>,
 }
 
+impl Default for SkillsService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SkillsService {
     /// Create a new SkillsService.
     /// Reads VIRUSTOTAL_API_KEY from environment. If not set, VT scanning is disabled.
     pub fn new() -> Self {
-        let vt_api_key = std::env::var("VIRUSTOTAL_API_KEY").ok().filter(|k| !k.is_empty());
+        let vt_api_key = std::env::var("VIRUSTOTAL_API_KEY")
+            .ok()
+            .filter(|k| !k.is_empty());
 
         if vt_api_key.is_some() {
             info!("VirusTotal API key configured — security scanning enabled");
@@ -137,17 +147,13 @@ impl SkillsService {
             urlencoded(&search_text)
         );
 
-        let response = self
-            .http_client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| AppError::InternalError(format!("Failed to search npm registry: {}", e)))?;
+        let response = self.http_client.get(&url).send().await.map_err(|e| {
+            AppError::InternalError(format!("Failed to search npm registry: {}", e))
+        })?;
 
-        let npm_response: NpmSearchResponse = response
-            .json()
-            .await
-            .map_err(|e| AppError::InternalError(format!("Failed to parse npm search response: {}", e)))?;
+        let npm_response: NpmSearchResponse = response.json().await.map_err(|e| {
+            AppError::InternalError(format!("Failed to parse npm search response: {}", e))
+        })?;
 
         let mut skills: Vec<SkillMetadata> = npm_response
             .objects
@@ -172,12 +178,9 @@ impl SkillsService {
     pub async fn get_skill_details(&self, name: &str) -> Result<SkillMetadata, AppError> {
         let url = format!("https://registry.npmjs.org/{}", urlencoded(name));
 
-        let response = self
-            .http_client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| AppError::InternalError(format!("Failed to fetch package details: {}", e)))?;
+        let response = self.http_client.get(&url).send().await.map_err(|e| {
+            AppError::InternalError(format!("Failed to fetch package details: {}", e))
+        })?;
 
         if response.status() == reqwest::StatusCode::NOT_FOUND {
             return Err(AppError::SkillNotFound(format!(
@@ -186,10 +189,9 @@ impl SkillsService {
             )));
         }
 
-        let detail: NpmPackageDetail = response
-            .json()
-            .await
-            .map_err(|e| AppError::InternalError(format!("Failed to parse package details: {}", e)))?;
+        let detail: NpmPackageDetail = response.json().await.map_err(|e| {
+            AppError::InternalError(format!("Failed to parse package details: {}", e))
+        })?;
 
         let version = detail
             .dist_tags
@@ -255,7 +257,10 @@ impl SkillsService {
                 Ok(None) => None,
                 Err(e) => {
                     // Degrade gracefully: VT failure does NOT block installation
-                    warn!("VirusTotal scan failed for '{}': {} — proceeding without scan", name, e);
+                    warn!(
+                        "VirusTotal scan failed for '{}': {} — proceeding without scan",
+                        name, e
+                    );
                     None
                 }
             }
@@ -295,7 +300,10 @@ impl SkillsService {
         let installed_version = parse_npm_install_version(&stdout)
             .unwrap_or_else(|| version.unwrap_or("latest").to_string());
 
-        info!("Skill '{}@{}' installed successfully", name, installed_version);
+        info!(
+            "Skill '{}@{}' installed successfully",
+            name, installed_version
+        );
 
         Ok(SkillInstallResponse {
             success: true,
@@ -338,15 +346,12 @@ impl SkillsService {
             .args(["list", "-g", "--depth=0", "--json"])
             .output()
             .await
-            .map_err(|e| {
-                AppError::InternalError(format!("Failed to run npm list: {}", e))
-            })?;
+            .map_err(|e| AppError::InternalError(format!("Failed to run npm list: {}", e)))?;
 
         let stdout = String::from_utf8_lossy(&output.stdout);
 
-        let npm_list: NpmListOutput = serde_json::from_str(&stdout).unwrap_or(NpmListOutput {
-            dependencies: None,
-        });
+        let npm_list: NpmListOutput =
+            serde_json::from_str(&stdout).unwrap_or(NpmListOutput { dependencies: None });
 
         let mut skills = Vec::new();
 
@@ -406,7 +411,7 @@ impl SkillsService {
         let tarball_url = format!(
             "https://registry.npmjs.org/{}/-/{}-{}.tgz",
             name,
-            name.split('/').last().unwrap_or(name),
+            name.split('/').next_back().unwrap_or(name),
             version
         );
 
@@ -429,9 +434,7 @@ impl SkillsService {
         let temp_path = temp_dir.join(format!("{}-{}.tgz", name.replace('/', "_"), version));
         tokio::fs::write(&temp_path, &tarball_bytes)
             .await
-            .map_err(|e| {
-                AppError::VirusTotalError(format!("Failed to write temp file: {}", e))
-            })?;
+            .map_err(|e| AppError::VirusTotalError(format!("Failed to write temp file: {}", e)))?;
 
         let temp_path_str = temp_path.to_string_lossy().to_string();
 
@@ -542,11 +545,7 @@ async fn get_npm_global_prefix() -> Option<String> {
         .ok()?;
 
     if output.status.success() {
-        Some(
-            String::from_utf8_lossy(&output.stdout)
-                .trim()
-                .to_string(),
-        )
+        Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
     } else {
         None
     }
@@ -582,17 +581,29 @@ fn npm_package_to_metadata(pkg: &NpmPackage) -> SkillMetadata {
 fn keywords_to_category(keywords: &[String]) -> SkillCategory {
     let lower: Vec<String> = keywords.iter().map(|k| k.to_lowercase()).collect();
 
-    if lower.iter().any(|k| k == "devtools" || k == "dev-tools" || k == "development") {
+    if lower
+        .iter()
+        .any(|k| k == "devtools" || k == "dev-tools" || k == "development")
+    {
         SkillCategory::DevTools
-    } else if lower.iter().any(|k| k == "data" || k == "data-processing" || k == "dataprocessing") {
+    } else if lower
+        .iter()
+        .any(|k| k == "data" || k == "data-processing" || k == "dataprocessing")
+    {
         SkillCategory::DataProcessing
-    } else if lower.iter().any(|k| k == "api" || k == "api-integration" || k == "apiintegration") {
+    } else if lower
+        .iter()
+        .any(|k| k == "api" || k == "api-integration" || k == "apiintegration")
+    {
         SkillCategory::ApiIntegration
     } else if lower.iter().any(|k| k == "automation" || k == "automate") {
         SkillCategory::Automation
     } else if lower.iter().any(|k| k == "security" || k == "secure") {
         SkillCategory::Security
-    } else if lower.iter().any(|k| k == "monitoring" || k == "monitor" || k == "observability") {
+    } else if lower
+        .iter()
+        .any(|k| k == "monitoring" || k == "monitor" || k == "observability")
+    {
         SkillCategory::Monitoring
     } else {
         SkillCategory::Other
@@ -638,7 +649,7 @@ fn parse_npm_install_version(stdout: &str) -> Option<String> {
         if let Some(at_pos) = line.rfind('@') {
             let after_at = &line[at_pos + 1..];
             let version = after_at.trim();
-            if !version.is_empty() && version.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+            if !version.is_empty() && version.chars().next().is_some_and(|c| c.is_ascii_digit()) {
                 return Some(version.to_string());
             }
         }
@@ -653,25 +664,37 @@ mod tests {
     #[test]
     fn test_keywords_to_category_devtools() {
         let keywords = vec!["openclaw-skill".to_string(), "devtools".to_string()];
-        assert!(matches!(keywords_to_category(&keywords), SkillCategory::DevTools));
+        assert!(matches!(
+            keywords_to_category(&keywords),
+            SkillCategory::DevTools
+        ));
     }
 
     #[test]
     fn test_keywords_to_category_security() {
         let keywords = vec!["security".to_string()];
-        assert!(matches!(keywords_to_category(&keywords), SkillCategory::Security));
+        assert!(matches!(
+            keywords_to_category(&keywords),
+            SkillCategory::Security
+        ));
     }
 
     #[test]
     fn test_keywords_to_category_other() {
         let keywords = vec!["random".to_string()];
-        assert!(matches!(keywords_to_category(&keywords), SkillCategory::Other));
+        assert!(matches!(
+            keywords_to_category(&keywords),
+            SkillCategory::Other
+        ));
     }
 
     #[test]
     fn test_keywords_to_category_empty() {
         let keywords: Vec<String> = vec![];
-        assert!(matches!(keywords_to_category(&keywords), SkillCategory::Other));
+        assert!(matches!(
+            keywords_to_category(&keywords),
+            SkillCategory::Other
+        ));
     }
 
     #[test]
@@ -683,8 +706,14 @@ mod tests {
 
     #[test]
     fn test_matches_category() {
-        assert!(matches_category(&SkillCategory::DevTools, &SkillCategory::DevTools));
-        assert!(!matches_category(&SkillCategory::DevTools, &SkillCategory::Security));
+        assert!(matches_category(
+            &SkillCategory::DevTools,
+            &SkillCategory::DevTools
+        ));
+        assert!(!matches_category(
+            &SkillCategory::DevTools,
+            &SkillCategory::Security
+        ));
     }
 
     #[test]

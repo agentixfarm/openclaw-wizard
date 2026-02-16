@@ -16,7 +16,7 @@ interface InstallStepProps {
 
 export function InstallStep({ onGoToDashboard }: InstallStepProps) {
   const { formData, resetWizard, deploymentProfile, goToStep } = useWizard();
-  const { output, currentStage, status, error, progressPct, startInstall } =
+  const { output, currentStage, currentMessage, status, error, progressPct, startInstall } =
     useStreamingOutput();
   const [phase, setPhase] = useState<InstallPhase>('review');
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -55,7 +55,7 @@ export function InstallStep({ onGoToDashboard }: InstallStepProps) {
     try {
       // Build config
       const channels = channelsConfig?.channels?.map((channel) => {
-        const config = channel.config as any;
+        const config = channel.config as Record<string, unknown> | undefined;
         return {
           platform: channel.platform,
           enabled: true,
@@ -68,13 +68,18 @@ export function InstallStep({ onGoToDashboard }: InstallStepProps) {
 
       const config: WizardConfig = {
         provider: providerConfig.provider,
-        api_key: providerConfig.apiKey,
+        api_key: providerConfig.apiKey || '',
         auth_type: providerConfig.authType || 'api-key',
         gateway_port: gatewayConfig.port,
         gateway_bind: gatewayConfig.bind === 'loopback' ? '127.0.0.1' : '0.0.0.0',
         auth_mode: gatewayConfig.authMode,
         auth_credential: gatewayConfig.authCredential || null,
         channels: channels,
+        base_url: providerConfig.baseUrl || null,
+        model_id: providerConfig.modelId || null,
+        compatibility: providerConfig.compatibility || null,
+        account_id: providerConfig.accountId || null,
+        gateway_id: providerConfig.gatewayId || null,
       };
 
       await api.saveConfig(config);
@@ -101,8 +106,8 @@ export function InstallStep({ onGoToDashboard }: InstallStepProps) {
     });
   };
 
-  // Auto-transition to complete when install finishes
-  if (phase === 'installing' && status === 'completed') {
+  // Auto-transition to complete only when the final 'verify' stage completes
+  if (phase === 'installing' && status === 'completed' && currentStage === 'verify') {
     // Use setTimeout to avoid state update during render
     setTimeout(() => setPhase('complete'), 0);
   }
@@ -328,7 +333,7 @@ export function InstallStep({ onGoToDashboard }: InstallStepProps) {
 
           {/* Streaming output */}
           {status !== 'idle' && (
-            <StreamingOutput output={output} stage={currentStage} progressPct={progressPct} />
+            <StreamingOutput output={output} stage={currentStage} message={currentMessage} progressPct={progressPct} />
           )}
 
           {/* Error recovery */}

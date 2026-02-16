@@ -84,10 +84,7 @@ async fn validate_telegram(token: &str) -> ChannelValidationResponse {
             } else {
                 ChannelValidationResponse {
                     valid: false,
-                    error: Some(format!(
-                        "Telegram API error: {}",
-                        response.status()
-                    )),
+                    error: Some(format!("Telegram API error: {}", response.status())),
                     bot_name: None,
                     bot_username: None,
                 }
@@ -127,9 +124,7 @@ async fn validate_discord(token: &str) -> ChannelValidationResponse {
                             .and_then(|d| if d == "0" { None } else { Some(d) });
 
                         let bot_username = match discriminator {
-                            Some(disc) => username
-                                .as_ref()
-                                .map(|u| format!("{}#{}", u, disc)),
+                            Some(disc) => username.as_ref().map(|u| format!("{}#{}", u, disc)),
                             None => username.clone(),
                         };
 
@@ -159,10 +154,7 @@ async fn validate_discord(token: &str) -> ChannelValidationResponse {
             } else {
                 ChannelValidationResponse {
                     valid: false,
-                    error: Some(format!(
-                        "Discord API error: {}",
-                        response.status()
-                    )),
+                    error: Some(format!("Discord API error: {}", response.status())),
                     bot_name: None,
                     bot_username: None,
                 }
@@ -239,10 +231,7 @@ async fn validate_slack(bot_token: &str, _app_token: Option<&str>) -> ChannelVal
             } else {
                 ChannelValidationResponse {
                     valid: false,
-                    error: Some(format!(
-                        "Slack API error: {}",
-                        response.status()
-                    )),
+                    error: Some(format!("Slack API error: {}", response.status())),
                     bot_name: None,
                     bot_username: None,
                 }

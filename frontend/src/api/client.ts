@@ -69,7 +69,7 @@ async function fetchAPI<T>(endpoint: string): Promise<T> {
 /**
  * Fetch wrapper for POST API calls with JSON body
  */
-async function postAPI<T, B = any>(endpoint: string, body: B): Promise<T> {
+async function postAPI<T, B = unknown>(endpoint: string, body: B): Promise<T> {
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
@@ -94,7 +94,7 @@ async function postAPI<T, B = any>(endpoint: string, body: B): Promise<T> {
 /**
  * Fetch wrapper for PUT API calls with JSON body
  */
-async function putAPI<T, B = any>(endpoint: string, body: B): Promise<T> {
+async function putAPI<T, B = unknown>(endpoint: string, body: B): Promise<T> {
   const response = await fetch(endpoint, {
     method: 'PUT',
     headers: {
@@ -241,36 +241,36 @@ export const api = {
   /**
    * Get current config (openclaw.json)
    */
-  async getConfig(): Promise<any> {
-    return fetchAPI<any>('/api/dashboard/config');
+  async getConfig(): Promise<unknown> {
+    return fetchAPI<unknown>('/api/dashboard/config');
   },
 
   /**
    * Save dashboard config to openclaw.json
    */
-  async saveDashboardConfig(config: any): Promise<void> {
+  async saveDashboardConfig(config: unknown): Promise<void> {
     await putAPI<void>('/api/dashboard/config', config);
   },
 
   /**
    * Import config from uploaded JSON
    */
-  async importConfig(config: any): Promise<void> {
+  async importConfig(config: unknown): Promise<void> {
     await postAPI<void>('/api/dashboard/config/import', config);
   },
 
   /**
    * Export current config as JSON
    */
-  async exportConfig(): Promise<any> {
-    return fetchAPI<any>('/api/dashboard/config/export');
+  async exportConfig(): Promise<unknown> {
+    return fetchAPI<unknown>('/api/dashboard/config/export');
   },
 
   /**
    * Get version information (current and latest)
    */
-  async getVersionInfo(): Promise<any> {
-    return fetchAPI<any>('/api/dashboard/version');
+  async getVersionInfo(): Promise<unknown> {
+    return fetchAPI<unknown>('/api/dashboard/version');
   },
 
   /**

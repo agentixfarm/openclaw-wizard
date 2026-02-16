@@ -76,10 +76,7 @@ impl LogService {
         let candidates = vec![
             PathBuf::from(format!("{}/.openclaw/logs/{}.log", home, service)),
             PathBuf::from(format!("/var/log/openclaw/{}.log", service)),
-            PathBuf::from(format!(
-                "{}/Library/Logs/openclaw/{}.log",
-                home, service
-            )),
+            PathBuf::from(format!("{}/Library/Logs/openclaw/{}.log", home, service)),
         ];
 
         candidates.into_iter().find(|p| p.exists())
@@ -145,10 +142,7 @@ impl LogService {
     fn try_command_fallback(service: &str, lines: usize) -> Result<Vec<String>> {
         use crate::services::command::SafeCommand;
 
-        let output = SafeCommand::run(
-            "openclaw",
-            &[service, "logs", "--tail", &lines.to_string()],
-        );
+        let output = SafeCommand::run("openclaw", &[service, "logs", "--tail", &lines.to_string()]);
 
         match output {
             Ok(out) if out.exit_code == 0 && !out.stdout.is_empty() => {
@@ -170,19 +164,21 @@ impl LogService {
             if prefix.len() >= 10
                 && prefix.as_bytes()[4] == b'-'
                 && prefix.as_bytes()[7] == b'-'
-                && prefix.as_bytes()[0..4]
-                    .iter()
-                    .all(|b| b.is_ascii_digit())
+                && prefix.as_bytes()[0..4].iter().all(|b| b.is_ascii_digit())
             {
                 // Find the end of timestamp (space, tab, or bracket after date)
-                if let Some(end) = prefix.find(|c: char| c == ']' || (c == ' ' && prefix[..prefix.find(c).unwrap()].contains('T'))) {
+                if let Some(end) = prefix.find(|c: char| {
+                    c == ']' || (c == ' ' && prefix[..prefix.find(c).unwrap()].contains('T'))
+                }) {
                     return Some(prefix[..end].trim_start_matches('[').to_string());
                 }
                 // Simple YYYY-MM-DDTHH:MM:SS or YYYY-MM-DD HH:MM:SS
-                if prefix.len() >= 19 && (prefix.as_bytes()[10] == b'T' || prefix.as_bytes()[10] == b' ') {
+                if prefix.len() >= 19
+                    && (prefix.as_bytes()[10] == b'T' || prefix.as_bytes()[10] == b' ')
+                {
                     // Find end of timestamp
                     let ts_end = prefix[10..]
-                        .find(|c: char| c == ' ' || c == '\t' || c == ']')
+                        .find([' ', '\t', ']'])
                         .map(|i| i + 10)
                         .unwrap_or(std::cmp::min(30, prefix.len()));
                     return Some(prefix[..ts_end].to_string());
@@ -283,7 +279,8 @@ mod tests {
 
     #[test]
     fn test_parse_log_line_structured_json() {
-        let line = r#"{"level":"error","msg":"Failed to connect","timestamp":"2026-02-16T12:00:00Z"}"#;
+        let line =
+            r#"{"level":"error","msg":"Failed to connect","timestamp":"2026-02-16T12:00:00Z"}"#;
         let parsed = LogService::parse_log_line(line);
 
         assert_eq!(parsed.level, Some("error".to_string()));
