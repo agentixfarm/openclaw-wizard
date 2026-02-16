@@ -436,21 +436,36 @@ impl SkillsService {
             .await
             .map_err(|e| AppError::VirusTotalError(format!("Failed to write temp file: {}", e)))?;
 
-        let temp_path_str = temp_path.to_string_lossy().to_string();
+        // Submit file to VirusTotal API v3
+        let file_bytes = tokio::fs::read(&temp_path)
+            .await
+            .map_err(|e| AppError::VirusTotalError(format!("Failed to read temp file: {}", e)))?;
 
-        // Submit to VirusTotal (scan_file is blocking, run in spawn_blocking)
-        let api_key_clone = api_key.clone();
-        let scan_path = temp_path_str.clone();
-        let scan_response = tokio::task::spawn_blocking(move || {
-            let vt = virustotal3::VtClient::new(&api_key_clone);
-            vt.scan_file(&scan_path)
-        })
-        .await
-        .map_err(|e| AppError::VirusTotalError(format!("VT scan task failed: {}", e)))?
-        .map_err(|e| AppError::VirusTotalError(format!("VT file scan failed: {}", e)))?;
+        let form = reqwest::multipart::Form::new().part(
+            "file",
+            reqwest::multipart::Part::bytes(file_bytes)
+                .file_name(temp_path.file_name().unwrap_or_default().to_string_lossy().to_string()),
+        );
+
+        let client = reqwest::Client::new();
+        let scan_response: serde_json::Value = client
+            .post("https://www.virustotal.com/api/v3/files")
+            .header("x-apikey", &api_key)
+            .multipart(form)
+            .send()
+            .await
+            .map_err(|e| AppError::VirusTotalError(format!("VT file upload failed: {}", e)))?
+            .json()
+            .await
+            .map_err(|e| AppError::VirusTotalError(format!("VT scan response parse failed: {}", e)))?;
 
         // Clean up temp file
         let _ = tokio::fs::remove_file(&temp_path).await;
+
+        let resource_id = scan_response["data"]["id"]
+            .as_str()
+            .ok_or_else(|| AppError::VirusTotalError("No scan ID in VT response".to_string()))?
+            .to_string();
 
         // Wait for VT to process the file
         info!(
@@ -463,12 +478,18 @@ impl SkillsService {
         enforce_vt_rate_limit().await;
 
         // Retrieve the scan report
-        let resource_id = scan_response.data.id;
-        let vt = virustotal3::VtClient::new(&api_key);
-        let report: serde_json::Value = vt
-            .get_report_file(&resource_id)
+        let report: serde_json::Value = client
+            .get(format!(
+                "https://www.virustotal.com/api/v3/analyses/{}",
+                resource_id
+            ))
+            .header("x-apikey", &api_key)
+            .send()
             .await
-            .map_err(|e| AppError::VirusTotalError(format!("VT report retrieval failed: {}", e)))?;
+            .map_err(|e| AppError::VirusTotalError(format!("VT report retrieval failed: {}", e)))?
+            .json()
+            .await
+            .map_err(|e| AppError::VirusTotalError(format!("VT report parse failed: {}", e)))?;
 
         // Parse scan results from the report JSON
         let scan_result = parse_vt_report(&report);
