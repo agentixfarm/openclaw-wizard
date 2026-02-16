@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** Non-technical users successfully set up and manage OpenClaw without touching a terminal.
-**Current focus:** Phase 6 in progress — Docker & Skills Management
+**Current focus:** Phase 8 verified — ready for Phase 9 (Production Quality)
 
 ## Current Position
 
-Phase: 6 of 9 (Docker & Skills Management)
-Plan: 5 of 5 complete in current phase
-Status: Phase 6 Complete
-Last activity: 2026-02-15 — Completed Phase 6 Plan 05
+Phase: 9 of 9 (Production Quality)
+Plan: 0 of TBD in current phase
+Status: Phase 9 Not Started — Awaiting Planning
+Last activity: 2026-02-16 — Phase 8 verified and marked complete
 
-Progress: [███████░░░] 67% (6/9 phases complete)
+Progress: [█████████░] 89% (8/9 phases complete, Phase 9 not started)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13 (12 from v1.0 + 1 from v1.1)
+- Total plans completed: 31 (12 from v1.0 + 19 from v1.1)
 - Average duration: ~45 min per plan (estimated)
-- Total execution time: ~7.4 hours
+- Total execution time: ~10.5 hours
 
 **By Phase:**
 
@@ -58,6 +58,18 @@ Progress: [███████░░░] 67% (6/9 phases complete)
 | 06-05 | 490 | 3 | 5 |
 
 *Phase 6 velocity: ~9 min per plan (547s average)*
+
+**Phase 7 Progress:**
+
+| Plan | Duration (s) | Tasks | Files |
+|------|-------------|-------|-------|
+| 07-01 | ~420 | 3 | 6 |
+| 07-02 | ~360 | 2 | 3 |
+| 07-03 | ~300 | 3 | 4 |
+| 07-04 | ~450 | 3 | 7 |
+| 07-05 | ~360 | 3 | 3 |
+
+*Phase 7 velocity: ~6 min per plan (~378s average)*
 
 ## Accumulated Context
 
@@ -126,6 +138,39 @@ Recent decisions affecting v1.1 work:
 - Malicious skills always blocked with disabled install button; suspicious shows amber confirmation dialog
 - Dark mode container wraps SkillsBrowser in dashboard since dashboard uses gray-50 background
 
+**Phase 7 Plan 1 Decisions:**
+- ServiceManager is stateless (like DaemonService) — created per-request
+- Gateway detection: node process with "gateway" in args (or "openclaw" without "daemon")
+- Daemon detection: node process with "daemon" in args
+- stop_daemon uses sysinfo PID + process.kill() (SIGTERM) since no `openclaw daemon stop` command
+- Existing DaemonService NOT modified — backward compatibility preserved
+
+**Phase 7 Plan 2 Decisions:**
+- LogService uses tail -f via tokio::process for streaming (OS-native efficiency)
+- Bounded channel capacity 1000 for log streaming (prevents memory leaks)
+- LogAnalyzer reads AI config from openclaw.json with 4 field path fallbacks
+- Global AtomicU64 rate limiter (10s between analysis requests) — same pattern as VT rate limiting
+- Secret redaction covers sk-ant-, sk-, xoxb-, xoxp-, bot_token, apiKey patterns
+- Claude claude-sonnet-4-20250514 for Anthropic analysis, gpt-4o-mini for OpenAI — cost-effective models
+
+**Phase 7 Plan 3 Decisions:**
+- Service management routes under /api/services/ (separate from existing /api/dashboard/)
+- Log WebSocket at /ws/logs accepts JSON or plain text service name
+- LogsQuery uses axum Query extractor with optional level and search params
+
+**Phase 7 Plan 4 Decisions:**
+- useServiceManager replaces useDaemonStatus in dashboard (useDaemonStatus kept for backward compatibility)
+- useLogViewer uses circular buffer (5000 lines max) to prevent memory issues
+- bigint handling for ts-rs u64 fields (Number() conversion at display time)
+- ServiceControls uses actionLoading per-service (gateway and daemon load independently)
+
+**Phase 7 Plan 5 Decisions:**
+- LogViewer uses ansi-to-react default import for ANSI escape code rendering
+- Error lines highlighted with red border and show "Analyze Error" on hover (gathers 50 surrounding lines)
+- LogAnalysisPanel slide-over matches SkillDetail pattern (overlay + right panel)
+- Auto-scroll detects manual scroll-up via onScroll handler (50px threshold)
+- Download generates .log file with filtered content and timestamped filename
+
 ### Pending Todos
 
 None yet.
@@ -136,13 +181,39 @@ None yet.
 - Phase 5: SSH credential storage must use platform keychain (keyring crate), never localStorage — security critical
 - Phase 6: Docker containers need strict resource limits (--memory, --cpus, --pids-limit) to prevent host exhaustion
 - Phase 6: Skills require WASM-based sandboxing (wasmtime) to prevent supply chain attacks
-- Phase 7: Log streaming must use bounded channels (capacity 1000) to prevent memory leaks
-- Phase 8: Multi-server orchestration needs saga pattern rollback for partial failures
-- Phase 8: AI analysis must redact secrets before sending config to external APIs
+- ~~Phase 7: Log streaming must use bounded channels (capacity 1000) to prevent memory leaks~~ RESOLVED
+- ~~Phase 8: Multi-server orchestration needs saga pattern rollback for partial failures~~ RESOLVED
+- ~~Phase 8: AI analysis must redact secrets before sending config to external APIs~~ RESOLVED
+
+**Phase 8 Plan 1 Decisions:**
+- ConfigAnalyzer reuses LogAnalyzer::redact_secrets for secret redaction before AI calls
+- SecurityAuditor is purely deterministic (no AI needed) -- 8 rule-based checks
+- Separate LAST_COST_ANALYSIS rate limiter to not conflict with LogAnalyzer
+- Static LLM pricing data with 7 models across 4 providers
+
+**Phase 8 Plan 2 Decisions:**
+- MultiServerOrchestrator is stateless with server list persisted to disk (servers.json)
+- MAX_PARALLEL_DEPLOYMENTS = 5 to cap concurrent SSH connections
+- Saga rollback runs compensating actions in reverse: stop daemon, remove config, uninstall
+- Per-server progress forwarded to aggregate channel using RemoteSetupProgress type
+
+**Phase 8 Plan 3 Decisions:**
+- Intelligence routes follow existing service handler patterns (ApiResponse wrapper)
+- Multi-server WebSocket accepts both WsMessage envelope and direct JSON
+- load_wizard_config_for_deploy follows remote.rs pattern for config loading
+
+**Phase 8 Plan 4 Decisions:**
+- Intelligence tab has sub-tabs (Cost Optimization / Security Audit) instead of separate tabs
+- Auto-load pricing when Cost sub-tab opens, auto-run audit when Security sub-tab opens
+- SecurityAuditPanel named differently from SecurityAudit type to avoid naming conflict
+
+**Phase 8 Plan 5 Decisions:**
+- Multi-Server step is skippable (Skip - Single Server button)
+- 5-stage progress indicator: Connect > Node > OpenClaw > Config > Daemon
+- Partial failure shows Rollback button per server and Continue with N option
 
 ## Session Continuity
 
-Last session: 2026-02-15T11:30:09Z
-Stopped at: Completed 06-05-PLAN.md — Skills frontend with SkillsBrowser, SkillDetail, useSkills hook, dashboard integration. Phase 6 complete.
-Resume file: None — ready to continue with Phase 7
-Resume file: None — ready to continue with Phase 6 Plan 05
+Last session: 2026-02-16
+Stopped at: Phase 8 verified and marked complete. All 5 success criteria passed.
+Resume at: Phase 9 planning (Production Quality).
