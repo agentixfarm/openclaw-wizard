@@ -46,10 +46,17 @@ jobs:
         working-directory: frontend
         run: npm ci && npm run build
 
-      - name: Copy frontend to static
+      - name: Copy frontend to static (unix)
+        if: runner.os != 'Windows'
         run: |
           rm -rf backend/static
           cp -r frontend/dist backend/static
+
+      - name: Copy frontend to static (windows)
+        if: runner.os == 'Windows'
+        run: |
+          if (Test-Path backend\static) { Remove-Item -Recurse -Force backend\static }
+          Copy-Item -Recurse frontend\dist backend\static
 
       - uses: dtolnay/rust-toolchain@stable
         with:
