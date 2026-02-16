@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Activity, Settings, FileText, Package, Lightbulb } from 'lucide-react';
+import { ArrowLeft, Activity, Settings, FileText, Package, Lightbulb, MessageSquare, ExternalLink } from 'lucide-react';
 import { AsciiLogo } from '../ui/AsciiLogo';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { useServiceManager } from '../../hooks/useServiceManager';
@@ -14,6 +14,8 @@ import { SkillsBrowser } from '../steps/SkillsBrowser';
 import { LogViewer } from './LogViewer';
 import { CostOptimizer } from './CostOptimizer';
 import { SecurityAuditPanel } from './SecurityAuditPanel';
+import { UninstallPanel } from './UninstallPanel';
+import { UpgradePanel } from './UpgradePanel';
 
 interface DashboardLayoutProps {
   onBackToWizard: () => void;
@@ -31,6 +33,8 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
   const {
     services,
     actionLoading,
+    actionError,
+    clearError,
     startGateway,
     stopGateway,
     restartGateway,
@@ -42,6 +46,7 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
     runDoctor,
   } = useServiceManager();
   const { health, refresh: refreshHealth } = useHealthMonitor();
+  const [chatUrl, setChatUrl] = useState<string | null>(null);
   const {
     costAnalysis,
     securityAudit: securityAuditResult,
@@ -53,6 +58,20 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
     runSecurityAudit,
     loadPricing,
   } = useConfigAnalyzer();
+
+  // Fetch authenticated chat URL when gateway is running
+  useEffect(() => {
+    if (!services?.gateway?.running) {
+      setChatUrl(null);
+      return;
+    }
+    fetch('/api/dashboard/chat-url')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.data?.url) setChatUrl(data.data.url);
+      })
+      .catch(() => {});
+  }, [services?.gateway?.running]);
 
   // Auto-load pricing when Cost sub-tab opens
   useEffect(() => {
@@ -118,8 +137,8 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
 
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* Status Cards - Gateway, Daemon, System */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {/* Status Cards - Gateway + System */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <StatusCard
             title="Gateway"
             value={services?.gateway?.running ? 'Running' : 'Stopped'}
@@ -127,16 +146,6 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
             subtitle={
               services?.gateway?.running
                 ? `PID: ${services.gateway.pid ?? 'N/A'} | ${formatUptime(services.gateway.uptime_seconds)} | ${formatMemory(services.gateway.memory_mb)}`
-                : 'Not running'
-            }
-          />
-          <StatusCard
-            title="Daemon"
-            value={services?.daemon?.running ? 'Running' : 'Stopped'}
-            status={services?.daemon?.running ? 'ok' : 'neutral'}
-            subtitle={
-              services?.daemon?.running
-                ? `PID: ${services.daemon.pid ?? 'N/A'} | ${formatUptime(services.daemon.uptime_seconds)} | ${formatMemory(services.daemon.memory_mb)}`
                 : 'Not running'
             }
           />
@@ -152,11 +161,13 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
           />
         </div>
 
-        {/* Service Controls */}
-        <div className="mb-6">
+        {/* Service Controls + Chat — side by side */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <ServiceControls
             services={services}
             actionLoading={actionLoading}
+            actionError={actionError}
+            onClearError={clearError}
             onStartGateway={startGateway}
             onStopGateway={stopGateway}
             onRestartGateway={restartGateway}
@@ -164,6 +175,51 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
             onStopDaemon={stopDaemon}
             onRestartDaemon={restartDaemon}
           />
+
+          {/* Open Chat card */}
+          <div className="bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Chat</h3>
+              <span
+                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
+                  chatUrl
+                    ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400'
+                    : 'bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-gray-400'
+                }`}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    chatUrl ? 'bg-green-500' : 'bg-gray-400'
+                  }`}
+                />
+                {chatUrl ? 'Available' : 'Unavailable'}
+              </span>
+            </div>
+
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              {services?.gateway?.running
+                ? 'Your agent is ready. Open the web console to start a conversation.'
+                : 'Start the gateway to enable the web console.'}
+            </p>
+
+            <a
+              href={chatUrl || '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                chatUrl
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-gray-300 dark:bg-zinc-600 text-gray-500 dark:text-zinc-400 cursor-not-allowed pointer-events-none'
+              }`}
+              onClick={(e) => {
+                if (!chatUrl) e.preventDefault();
+              }}
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              Start talking to your Agent
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </div>
         </div>
 
         {/* Doctor Diagnostics */}
@@ -173,6 +229,11 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
             loading={doctorLoading}
             onRun={runDoctor}
           />
+        </div>
+
+        {/* Upgrade Panel */}
+        <div className="mb-6">
+          <UpgradePanel />
         </div>
 
         {/* Tab Navigation */}
@@ -239,7 +300,7 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
 
           {/* Tab Content */}
           <div className="p-6">
-            {activeTab === 'overview' && <HealthMonitor health={health} daemonRunning={services?.gateway?.running ?? false} onRefresh={refreshHealth} />}
+            {activeTab === 'overview' && <HealthMonitor health={health} gatewayRunning={services?.gateway?.running ?? false} onRefresh={refreshHealth} />}
             {activeTab === 'config' && <ConfigEditor />}
             {activeTab === 'skills' && (
               <div className="bg-zinc-900 rounded-lg p-6 -m-6">
@@ -300,6 +361,9 @@ export function DashboardLayout({ onBackToWizard }: DashboardLayoutProps) {
             )}
           </div>
         </div>
+
+        {/* Danger Zone */}
+        <UninstallPanel />
       </main>
     </div>
   );
