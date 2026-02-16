@@ -275,5 +275,10 @@ fn load_wizard_config_for_deploy() -> anyhow::Result<WizardConfig> {
         auth_mode,
         auth_credential,
         channels: None,
+        base_url: None,
+        model_id: None,
+        compatibility: None,
+        account_id: None,
+        gateway_id: None,
     })
 }

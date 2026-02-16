@@ -12,12 +12,20 @@ export const systemCheckSchema = z.object({
 
 /**
  * Provider Configuration step schema
- * authType: 'api-key' for standard API keys, 'setup-token' for Anthropic setup tokens (sk-ant-oat01-...)
+ * Supports all providers from `openclaw onboard`: Anthropic, OpenAI, Google, xAI, OpenRouter, etc.
+ * authType: 'api-key' for standard API keys, 'setup-token' for Anthropic setup tokens,
+ *           'oauth' for OAuth-only providers, 'skip' for skipping
  */
 export const providerConfigSchema = z.object({
-  provider: z.enum(['anthropic', 'openai']),
-  authType: z.enum(['api-key', 'setup-token']).default('api-key'),
-  apiKey: z.string().min(10, 'Credential must be at least 10 characters'),
+  provider: z.string().min(1, 'Provider is required'),
+  authType: z.enum(['api-key', 'setup-token', 'oauth', 'skip']).default('api-key'),
+  apiKey: z.string().optional(),
+  // Extra fields for advanced providers (Custom, Cloudflare, vLLM)
+  baseUrl: z.string().url('Must be a valid URL').optional().or(z.literal('')),
+  modelId: z.string().optional(),
+  compatibility: z.enum(['openai', 'anthropic']).optional(),
+  accountId: z.string().optional(),
+  gatewayId: z.string().optional(),
 });
 
 /**

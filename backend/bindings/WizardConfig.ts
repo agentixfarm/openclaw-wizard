@@ -6,6 +6,18 @@ import type { ChannelConfig } from "./ChannelConfig";
  */
 export type WizardConfig = { provider: string, api_key: string, 
 /**
- * "api-key" or "setup-token"
+ * "api-key", "setup-token", "oauth", or "skip"
  */
-auth_type: string, gateway_port: number, gateway_bind: string, auth_mode: string, auth_credential: string | null, channels: Array<ChannelConfig> | null, };
+auth_type: string, gateway_port: number, gateway_bind: string, auth_mode: string, auth_credential: string | null, channels: Array<ChannelConfig> | null, base_url: string | null, model_id: string | null, 
+/**
+ * "openai" or "anthropic" (Custom provider compatibility mode)
+ */
+compatibility: string | null, 
+/**
+ * Cloudflare account ID
+ */
+account_id: string | null, 
+/**
+ * Cloudflare gateway ID
+ */
+gateway_id: string | null, };

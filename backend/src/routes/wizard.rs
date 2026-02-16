@@ -8,16 +8,22 @@ use crate::models::{ApiKeyValidationRequest, ApiKeyValidationResponse, ApiRespon
 use crate::services::{config::ConfigWriter, platform::Platform, RollbackService};
 use crate::error::AppError;
 
-/// Validate API key or setup token by testing against provider API
+/// Validate API key or setup token by testing against provider API.
+/// Anthropic and OpenAI get full API validation; all other providers get format validation only.
 pub async fn validate_api_key(Json(request): Json<ApiKeyValidationRequest>) -> Json<ApiResponse<ApiKeyValidationResponse>> {
     let response = match (request.provider.as_str(), request.auth_type.as_str()) {
+        // Skip and OAuth don't need validation
+        ("skip", _) | (_, "oauth") | (_, "skip") => ApiKeyValidationResponse {
+            valid: true,
+            error: None,
+        },
+        // Anthropic: full API validation
         ("anthropic", "setup-token") => validate_anthropic_setup_token(&request.api_key),
         ("anthropic", _) => validate_anthropic_key(&request.api_key).await,
+        // OpenAI: full API validation
         ("openai", _) => validate_openai_key(&request.api_key).await,
-        _ => ApiKeyValidationResponse {
-            valid: false,
-            error: Some("Unsupported provider".to_string()),
-        },
+        // All other providers: format validation (non-empty, min length)
+        _ => validate_generic_key(&request.api_key),
     };
 
     Json(ApiResponse {
@@ -91,6 +97,26 @@ async fn validate_anthropic_key(api_key: &str) -> ApiKeyValidationResponse {
     }
 }
 
+/// Generic API key format validation (non-empty, min length)
+fn validate_generic_key(api_key: &str) -> ApiKeyValidationResponse {
+    if api_key.trim().is_empty() {
+        return ApiKeyValidationResponse {
+            valid: false,
+            error: Some("API key is required".to_string()),
+        };
+    }
+    if api_key.len() < 10 {
+        return ApiKeyValidationResponse {
+            valid: false,
+            error: Some("API key appears too short".to_string()),
+        };
+    }
+    ApiKeyValidationResponse {
+        valid: true,
+        error: None,
+    }
+}
+
 /// Validate OpenAI API key
 async fn validate_openai_key(api_key: &str) -> ApiKeyValidationResponse {
     let client = reqwest::Client::new();
@@ -128,26 +154,58 @@ async fn validate_openai_key(api_key: &str) -> ApiKeyValidationResponse {
 
 /// Save wizard configuration to openclaw.json
 pub async fn save_config(Json(config): Json<WizardConfig>) -> Json<ApiResponse<EmptyResponse>> {
-    // Map auth_type to OpenClaw's config format
-    // OpenClaw uses: "api-key" for standard keys, "token" for setup tokens
-    let openclaw_auth_type = match config.auth_type.as_str() {
-        "setup-token" => "token",
-        _ => "api-key",
+    // Build wizard's internal config (preserves all wizard fields)
+    let wizard_config = serde_json::json!({
+        "provider": config.provider,
+        "auth_type": config.auth_type,
+        "api_key": config.api_key,
+        "gateway_port": config.gateway_port,
+        "gateway_bind": config.gateway_bind,
+        "auth_mode": config.auth_mode,
+        "auth_credential": config.auth_credential,
+        "channels": config.channels,
+        "base_url": config.base_url,
+        "model_id": config.model_id,
+        "compatibility": config.compatibility,
+        "account_id": config.account_id,
+        "gateway_id": config.gateway_id,
+    });
+
+    // Save to wizard's own config dir
+    let config_dir = match Platform::config_dir() {
+        Ok(dir) => dir,
+        Err(e) => return Json(ApiResponse {
+            success: false,
+            data: None,
+            error: Some(format!("Failed to determine config directory: {}", e)),
+        }),
     };
 
-    // Build OpenClaw-compatible JSON config
-    let mut openclaw_config = serde_json::json!({
-        "ai": {
-            "provider": config.provider,
-            "auth": openclaw_auth_type,
-            "apiKey": config.api_key,
-        },
+    let config_path = config_dir.join("openclaw.json");
+    if let Err(e) = ConfigWriter::write_json(&config_path, &wizard_config) {
+        return Json(ApiResponse {
+            success: false,
+            data: None,
+            error: Some(format!("Failed to write config: {}", e)),
+        });
+    }
+
+    // Build OpenClaw gateway-compatible config format
+    // gateway.bind must be "loopback" not "127.0.0.1", gateway.auth uses "token" not "credential"
+    let bind_value = match config.gateway_bind.as_str() {
+        "127.0.0.1" | "localhost" | "loopback" => "loopback",
+        "0.0.0.0" | "all" => "all",
+        other => other,
+    };
+
+    let mut gateway_config = serde_json::json!({
         "gateway": {
+            "mode": "local",
             "port": config.gateway_port,
-            "bind": config.gateway_bind,
+            "bind": bind_value,
             "auth": {
                 "mode": config.auth_mode,
-                "credential": config.auth_credential,
+                "token": config.auth_credential,
             }
         }
     });
@@ -170,37 +228,38 @@ pub async fn save_config(Json(config): Json<WizardConfig>) -> Json<ApiResponse<E
 
             channels_obj.insert(channel.platform.clone(), serde_json::Value::Object(channel_config));
         }
-        openclaw_config.as_object_mut().unwrap()
+        gateway_config.as_object_mut().unwrap()
             .insert("channels".to_string(), serde_json::Value::Object(channels_obj));
     }
 
-    // Get config path
-    match Platform::config_dir() {
-        Ok(config_dir) => {
-            let config_path = config_dir.join("openclaw.json");
+    // Deploy to ~/.openclaw/openclaw.json, merging with existing config
+    if let Ok(home) = Platform::home_dir() {
+        let openclaw_dir = home.join(".openclaw");
+        let _ = std::fs::create_dir_all(&openclaw_dir);
+        let target_path = openclaw_dir.join("openclaw.json");
 
-            match ConfigWriter::write_json(&config_path, &openclaw_config) {
-                Ok(_) => Json(ApiResponse {
-                    success: true,
-                    data: Some(EmptyResponse {
-                        success: true,
-                        error: None,
-                    }),
-                    error: None,
-                }),
-                Err(e) => Json(ApiResponse {
-                    success: false,
-                    data: None,
-                    error: Some(format!("Failed to write config: {}", e)),
-                }),
+        // Read existing config to preserve meta/commands/agents sections
+        let mut existing: serde_json::Value = ConfigWriter::read_json(&target_path)
+            .unwrap_or_else(|_| serde_json::json!({}));
+
+        // Merge gateway and channels into existing config
+        if let (Some(existing_obj), Some(new_obj)) = (existing.as_object_mut(), gateway_config.as_object()) {
+            for (key, value) in new_obj {
+                existing_obj.insert(key.clone(), value.clone());
             }
         }
-        Err(e) => Json(ApiResponse {
-            success: false,
-            data: None,
-            error: Some(format!("Failed to determine config directory: {}", e)),
-        }),
+
+        let _ = ConfigWriter::write_json(&target_path, &existing);
     }
+
+    Json(ApiResponse {
+        success: true,
+        data: Some(EmptyResponse {
+            success: true,
+            error: None,
+        }),
+        error: None,
+    })
 }
 
 /// Start installation (returns acknowledgment, actual progress via WebSocket)

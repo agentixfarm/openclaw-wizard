@@ -10,6 +10,8 @@ import { api } from '../../api/client';
 import clsx from 'clsx';
 import { z } from 'zod';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { PROVIDERS, getProvider } from '../../data/providers';
+import type { ProviderDef } from '../../data/providers';
 
 type GatewayConfigInput = z.input<typeof gatewayConfigSchema>;
 type AdvancedConfigForm = z.infer<typeof advancedConfigSchema>;
@@ -84,16 +86,24 @@ export function ConfigureStep() {
     }
   };
 
+  const providerDef = getProvider(selectedProvider) as ProviderDef | undefined;
+
   const getApiKeyPlaceholder = () => {
-    if (selectedProvider === 'openai') return 'sk-...';
     if (selectedAuthType === 'setup-token') return 'sk-ant-oat01-...';
-    return 'sk-ant-api03-...';
+    return providerDef?.keyPlaceholder || 'sk-...';
   };
 
   const getApiKeyLabel = () => {
     if (selectedAuthType === 'setup-token') return 'Setup Token';
     return 'API Key';
   };
+
+  const showKeyInput = providerDef?.needsKey !== false && providerDef?.category !== 'oauth' && selectedProvider !== 'skip';
+  const isOAuth = providerDef?.category === 'oauth';
+  const isSkip = selectedProvider === 'skip';
+  const extraFields = providerDef?.extraFields || [];
+  // Custom provider has optional API key
+  const showOptionalKeyInput = selectedProvider === 'custom';
 
   // Gateway summary for collapsed state
   const gatewayPort = gatewayForm.watch('port');
@@ -113,10 +123,7 @@ export function ConfigureStep() {
     }
 
     const providerData = providerForm.getValues();
-
-    // Validate API key
-    setIsValidating(true);
-    setValidationError(null);
+    const currentProvider = getProvider(providerData.provider);
 
     // Always save form data so review screen shows what was entered
     const saveAllData = () => {
@@ -125,32 +132,58 @@ export function ConfigureStep() {
       updateFormData('advancedConfig', advancedForm.getValues());
     };
 
-    try {
-      const response = await api.validateApiKey({
-        provider: providerData.provider,
-        api_key: providerData.apiKey,
-        auth_type: providerData.authType || 'api-key',
-      });
+    // OAuth and Skip providers don't need key validation
+    const skipValidation = currentProvider?.category === 'oauth' || providerData.provider === 'skip';
+    // Providers without needsKey that aren't custom also skip (like vLLM)
+    const noKeyNeeded = currentProvider?.needsKey === false && providerData.provider !== 'custom';
 
-      if (!response.valid) {
-        setValidationError(response.error || 'API key validation failed');
+    if (!skipValidation && !noKeyNeeded) {
+      // Validate API key
+      setIsValidating(true);
+      setValidationError(null);
+
+      try {
+        const response = await api.validateApiKey({
+          provider: providerData.provider,
+          api_key: providerData.apiKey || '',
+          auth_type: providerData.authType || 'api-key',
+        });
+
+        if (!response.valid) {
+          setValidationError(response.error || 'API key validation failed');
+          setExpandedSection('provider');
+          setIsValidating(false);
+          saveAllData();
+          return;
+        }
+
+        setIsValidated(true);
+      } catch (error) {
+        setValidationError(
+          error instanceof Error ? error.message : 'Network error during validation'
+        );
         setExpandedSection('provider');
         setIsValidating(false);
-        saveAllData(); // Save even on validation failure so review shows entered data
+        saveAllData();
         return;
+      } finally {
+        setIsValidating(false);
       }
+    }
 
-      setIsValidated(true);
-    } catch (error) {
-      setValidationError(
-        error instanceof Error ? error.message : 'Network error during validation'
-      );
-      setExpandedSection('provider');
-      setIsValidating(false);
-      saveAllData(); // Save even on error so review shows entered data
-      return;
-    } finally {
-      setIsValidating(false);
+    // Validate extra fields for advanced providers
+    if (currentProvider?.extraFields) {
+      for (const field of currentProvider.extraFields) {
+        if (field.required) {
+          const val = providerData[field.name as keyof typeof providerData] as string | undefined;
+          if (!val || val.trim() === '') {
+            setValidationError(`${field.label} is required`);
+            setExpandedSection('provider');
+            saveAllData();
+            return;
+          }
+        }
+      }
     }
 
     // Validate gateway form
@@ -198,7 +231,7 @@ export function ConfigureStep() {
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">AI Provider</h3>
                 {expandedSection !== 'provider' && (
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    {selectedProvider === 'anthropic' ? 'Anthropic (Claude)' : 'OpenAI (GPT)'} — {selectedAuthType === 'setup-token' ? 'Setup Token' : 'API Key'}
+                    {providerDef?.label || selectedProvider}{isSkip ? '' : ` — ${selectedAuthType === 'setup-token' ? 'Setup Token' : selectedAuthType === 'oauth' ? 'OAuth' : 'API Key'}`}
                   </p>
                 )}
               </div>
@@ -215,131 +248,204 @@ export function ConfigureStep() {
               {/* Provider Selection */}
               <div>
                 <label htmlFor="provider" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  AI Provider
+                  Model / Auth Provider
                 </label>
                 <select
                   id="provider"
-                  {...providerForm.register('provider')}
+                  {...providerForm.register('provider', {
+                    onChange: () => {
+                      // Reset validation state when provider changes
+                      setIsValidated(false);
+                      setValidationError(null);
+                    },
+                  })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-zinc-700 dark:text-gray-100"
                   disabled={isValidating}
                 >
-                  <option value="anthropic">Anthropic (Claude)</option>
-                  <option value="openai">OpenAI (GPT)</option>
+                  <optgroup label="Popular">
+                    {PROVIDERS.filter((p) => p.category === 'popular').map((p) => (
+                      <option key={p.id} value={p.id}>{p.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="API Key">
+                    {PROVIDERS.filter((p) => p.category === 'api-key').map((p) => (
+                      <option key={p.id} value={p.id}>{p.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="OAuth">
+                    {PROVIDERS.filter((p) => p.category === 'oauth').map((p) => (
+                      <option key={p.id} value={p.id}>{p.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Advanced">
+                    {PROVIDERS.filter((p) => p.category === 'advanced').map((p) => (
+                      <option key={p.id} value={p.id}>{p.label}</option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
 
               {/* Auth Type (Anthropic only) */}
-              {selectedProvider === 'anthropic' && (
+              {providerDef?.authTypes && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Authentication Method
                   </label>
                   <div className="flex gap-3">
-                    <label className={clsx(
-                      'flex-1 relative flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors',
-                      selectedAuthType === 'api-key'
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
-                        : 'border-gray-300 dark:border-zinc-600 hover:border-gray-400'
-                    )}>
-                      <input type="radio" {...providerForm.register('authType')} value="api-key" className="sr-only" disabled={isValidating} />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">API Key</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Standard API key</p>
-                      </div>
-                    </label>
-                    <label className={clsx(
-                      'flex-1 relative flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors',
-                      selectedAuthType === 'setup-token'
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
-                        : 'border-gray-300 dark:border-zinc-600 hover:border-gray-400'
-                    )}>
-                      <input type="radio" {...providerForm.register('authType')} value="setup-token" className="sr-only" disabled={isValidating} />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Setup Token</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">From <code className="text-xs bg-gray-100 dark:bg-zinc-700 px-1 rounded">claude setup-token</code></p>
-                      </div>
-                    </label>
+                    {providerDef.authTypes.map((at) => (
+                      <label
+                        key={at.value}
+                        className={clsx(
+                          'flex-1 relative flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors',
+                          selectedAuthType === at.value
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
+                            : 'border-gray-300 dark:border-zinc-600 hover:border-gray-400'
+                        )}
+                      >
+                        <input type="radio" {...providerForm.register('authType')} value={at.value} className="sr-only" disabled={isValidating} />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{at.label}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{at.description}</p>
+                        </div>
+                      </label>
+                    ))}
                   </div>
                 </div>
               )}
 
-              {/* API Key Input */}
-              <div>
-                <label htmlFor="apiKey" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {getApiKeyLabel()}
-                </label>
-                <div className="relative">
-                  <input
-                    id="apiKey"
-                    type={showApiKey ? 'text' : 'password'}
-                    {...providerForm.register('apiKey')}
-                    placeholder={getApiKeyPlaceholder()}
-                    className={clsx(
-                      'w-full px-3 py-2 pr-20 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-zinc-700 dark:text-gray-100',
-                      {
-                        'border-gray-300 dark:border-zinc-600': !providerForm.formState.errors.apiKey && !validationError,
-                        'border-red-300 bg-red-50 dark:bg-red-950/30': providerForm.formState.errors.apiKey || validationError,
-                        'border-green-300 bg-green-50 dark:bg-green-950/30': isValidated,
-                      }
-                    )}
-                    disabled={isValidating}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
-                  >
-                    {showApiKey ? 'Hide' : 'Show'}
-                  </button>
+              {/* OAuth info */}
+              {isOAuth && (
+                <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 p-3 border border-amber-200 dark:border-amber-800 text-sm text-amber-700 dark:text-amber-300">
+                  <p>This provider uses OAuth authentication. After installation, complete setup by running:</p>
+                  <code className="block mt-1 bg-amber-100 dark:bg-amber-900 px-2 py-1 rounded text-xs font-mono">openclaw onboard --auth-choice {providerDef?.authChoice}</code>
                 </div>
-                {providerForm.formState.errors.apiKey && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{providerForm.formState.errors.apiKey.message}</p>
-                )}
-                {validationError && (
-                  <div className="mt-2 space-y-2">
-                    <p className="text-sm text-red-600 dark:text-red-400">{validationError}</p>
+              )}
+
+              {/* Skip warning */}
+              {isSkip && (
+                <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 p-3 border border-amber-200 dark:border-amber-800 text-sm text-amber-700 dark:text-amber-300">
+                  <p>No AI provider will be configured. You can set one up later via <code className="bg-amber-100 dark:bg-amber-900 px-1 rounded text-xs font-mono">openclaw onboard</code>.</p>
+                </div>
+              )}
+
+              {/* API Key Input (for providers that need it) */}
+              {(showKeyInput || showOptionalKeyInput) && (
+                <div>
+                  <label htmlFor="apiKey" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {getApiKeyLabel()}{showOptionalKeyInput && !showKeyInput ? ' (optional)' : ''}
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="apiKey"
+                      type={showApiKey ? 'text' : 'password'}
+                      {...providerForm.register('apiKey')}
+                      placeholder={getApiKeyPlaceholder()}
+                      className={clsx(
+                        'w-full px-3 py-2 pr-20 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-zinc-700 dark:text-gray-100',
+                        {
+                          'border-gray-300 dark:border-zinc-600': !providerForm.formState.errors.apiKey && !validationError,
+                          'border-red-300 bg-red-50 dark:bg-red-950/30': providerForm.formState.errors.apiKey || validationError,
+                          'border-green-300 bg-green-50 dark:bg-green-950/30': isValidated,
+                        }
+                      )}
+                      disabled={isValidating}
+                    />
                     <button
                       type="button"
-                      onClick={handleSkipValidation}
-                      className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 underline"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
                     >
-                      Skip validation (not recommended)
+                      {showApiKey ? 'Hide' : 'Show'}
                     </button>
                   </div>
-                )}
-                {isValidated && (
-                  <div className="mt-2 flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <span>Validated</span>
-                  </div>
-                )}
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Securely stored in your configuration file.
-                </p>
-                {!providerForm.watch('apiKey') && (
-                  <button
-                    type="button"
-                    onClick={handleLoadFromConfig}
-                    disabled={loadingFromConfig}
-                    className="mt-2 text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 underline disabled:opacity-50"
-                  >
-                    {loadingFromConfig ? 'Loading...' : 'Load from saved configuration'}
-                  </button>
-                )}
-              </div>
+                  {providerForm.formState.errors.apiKey && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{providerForm.formState.errors.apiKey.message}</p>
+                  )}
+                  {validationError && (
+                    <div className="mt-2 space-y-2">
+                      <p className="text-sm text-red-600 dark:text-red-400">{validationError}</p>
+                      <button
+                        type="button"
+                        onClick={handleSkipValidation}
+                        className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 underline"
+                      >
+                        Skip validation (not recommended)
+                      </button>
+                    </div>
+                  )}
+                  {isValidated && (
+                    <div className="mt-2 flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>Validated</span>
+                    </div>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Securely stored in your configuration file.
+                  </p>
+                  {!providerForm.watch('apiKey') && selectedProvider === 'anthropic' && (
+                    <button
+                      type="button"
+                      onClick={handleLoadFromConfig}
+                      disabled={loadingFromConfig}
+                      className="mt-2 text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 underline disabled:opacity-50"
+                    >
+                      {loadingFromConfig ? 'Loading...' : 'Load from saved configuration'}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Extra fields for advanced providers */}
+              {extraFields.length > 0 && (
+                <div className="space-y-4 p-4 bg-gray-50 dark:bg-zinc-700/50 rounded-lg border border-gray-200 dark:border-zinc-600">
+                  {extraFields.map((field) => (
+                    <div key={field.name}>
+                      <label htmlFor={field.name} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        {field.label}{field.required && <span className="text-red-500 ml-0.5">*</span>}
+                      </label>
+                      {field.type === 'select' ? (
+                        <select
+                          id={field.name}
+                          {...providerForm.register(field.name as keyof ProviderConfigData)}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-zinc-700 dark:text-gray-100"
+                        >
+                          {field.options?.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          id={field.name}
+                          type="text"
+                          {...providerForm.register(field.name as keyof ProviderConfigData)}
+                          placeholder={field.placeholder}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-zinc-700 dark:text-gray-100"
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Help text */}
-              <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 p-3 border border-blue-200 dark:border-blue-800 text-sm text-blue-700 dark:text-blue-300">
-                {selectedProvider === 'anthropic' && selectedAuthType === 'setup-token' ? (
-                  <p>Run <code className="bg-blue-100 dark:bg-blue-900 px-1.5 py-0.5 rounded text-xs font-mono">claude setup-token</code> in your terminal to generate a setup token.</p>
-                ) : selectedProvider === 'anthropic' ? (
-                  <p>Visit <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-900 dark:hover:text-blue-200">Anthropic Console</a> to generate an API key.</p>
-                ) : (
-                  <p>Visit <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-900 dark:hover:text-blue-200">OpenAI Platform</a> to generate an API key.</p>
-                )}
-              </div>
+              {providerDef?.helpText && !isOAuth && !isSkip && (
+                <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 p-3 border border-blue-200 dark:border-blue-800 text-sm text-blue-700 dark:text-blue-300">
+                  {selectedProvider === 'anthropic' && selectedAuthType === 'setup-token' ? (
+                    <p>Run <code className="bg-blue-100 dark:bg-blue-900 px-1.5 py-0.5 rounded text-xs font-mono">claude setup-token</code> in your terminal to generate a setup token.</p>
+                  ) : (
+                    <p>
+                      {providerDef.helpText}
+                      {providerDef.helpUrl && (
+                        <>
+                          {' '}<a href={providerDef.helpUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-900 dark:hover:text-blue-200">Get your key here.</a>
+                        </>
+                      )}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

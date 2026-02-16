@@ -136,14 +136,24 @@ pub struct ChannelConfig {
 #[ts(export, export_to = "../bindings/")]
 pub struct WizardConfig {
     pub provider: String,
+    #[serde(default)]
     pub api_key: String,
-    /// "api-key" or "setup-token"
+    /// "api-key", "setup-token", "oauth", or "skip"
     pub auth_type: String,
     pub gateway_port: u16,
     pub gateway_bind: String,
     pub auth_mode: String,
     pub auth_credential: Option<String>,
-    pub channels: Option<Vec<ChannelConfig>>,  // NEW field
+    pub channels: Option<Vec<ChannelConfig>>,
+    // Extra fields for advanced providers (Custom, Cloudflare, vLLM)
+    pub base_url: Option<String>,
+    pub model_id: Option<String>,
+    /// "openai" or "anthropic" (Custom provider compatibility mode)
+    pub compatibility: Option<String>,
+    /// Cloudflare account ID
+    pub account_id: Option<String>,
+    /// Cloudflare gateway ID
+    pub gateway_id: Option<String>,
 }
 
 /// Installation request
