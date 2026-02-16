@@ -6,7 +6,7 @@
 //! - Configuration CRUD (read/write/import/export openclaw.json)
 
 use crate::models::types::{ApiResponse, DaemonActionResponse, DaemonStatus, HealthSnapshot};
-use crate::services::{config::ConfigWriter, daemon::DaemonService, health::HealthService};
+use crate::services::{config::ConfigWriter, daemon::DaemonService, health::HealthService, platform::Platform};
 use axum::Json;
 use std::path::PathBuf;
 
@@ -115,10 +115,11 @@ pub async fn get_health() -> Json<ApiResponse<HealthSnapshot>> {
 
 // ===== Configuration CRUD Endpoints =====
 
-/// Get the path to the OpenClaw configuration file
+/// Get the path to the wizard configuration file
 fn config_path() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_default();
-    PathBuf::from(&home).join(".openclaw/openclaw.json")
+    Platform::config_dir()
+        .unwrap_or_else(|_| PathBuf::from("."))
+        .join("openclaw.json")
 }
 
 /// GET /api/dashboard/config
@@ -147,7 +148,7 @@ pub async fn get_config() -> Json<ApiResponse<serde_json::Value>> {
 
 /// PUT /api/dashboard/config
 ///
-/// Saves new configuration atomically to ~/.openclaw/openclaw.json.
+/// Saves new configuration atomically to openclaw.json in the wizard config directory.
 /// Validates that input is valid JSON before saving.
 pub async fn save_config_handler(
     Json(config): Json<serde_json::Value>,
@@ -180,7 +181,7 @@ pub async fn save_config_handler(
 /// POST /api/dashboard/config/import
 ///
 /// Imports configuration from uploaded JSON.
-/// Validates and saves atomically to ~/.openclaw/openclaw.json.
+/// Validates and saves atomically to openclaw.json in the wizard config directory.
 pub async fn import_config(Json(config): Json<serde_json::Value>) -> Json<ApiResponse<()>> {
     // Import is the same as save - just semantically different endpoint
     save_config_handler(Json(config)).await
@@ -192,4 +193,42 @@ pub async fn import_config(Json(config): Json<serde_json::Value>) -> Json<ApiRes
 pub async fn export_config() -> Json<ApiResponse<serde_json::Value>> {
     // Export is the same as get - just semantically different endpoint
     get_config().await
+}
+
+/// GET /api/dashboard/chat-url
+///
+/// Returns the authenticated gateway dashboard URL.
+/// Reads port and auth token from openclaw.json in the wizard config directory and constructs the URL.
+/// The token is placed in the URL fragment (#token=...) which is never sent over HTTP.
+pub async fn get_chat_url() -> Json<ApiResponse<serde_json::Value>> {
+    let path = config_path();
+    let config = match ConfigWriter::read_json::<serde_json::Value>(&path) {
+        Ok(c) => c,
+        Err(e) => return Json(ApiResponse {
+            success: false,
+            data: None,
+            error: Some(format!("Config not found: {}", e)),
+        }),
+    };
+
+    let port = config.get("gateway")
+        .and_then(|g| g.get("port"))
+        .and_then(|p| p.as_u64())
+        .unwrap_or(18789);
+
+    let token = config.get("gateway")
+        .and_then(|g| g.get("auth"))
+        .and_then(|a| a.get("token"))
+        .and_then(|t| t.as_str());
+
+    let url = match token {
+        Some(t) => format!("http://127.0.0.1:{}/#token={}", port, t),
+        None => format!("http://127.0.0.1:{}/", port),
+    };
+
+    Json(ApiResponse {
+        success: true,
+        data: Some(serde_json::json!({ "url": url })),
+        error: None,
+    })
 }
