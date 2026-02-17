@@ -29,9 +29,6 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
             artifact: openclaw-wizard-macos-arm64
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            artifact: openclaw-wizard-windows-amd64.exe
 
     steps:
       - uses: actions/checkout@v4
@@ -46,17 +43,10 @@ jobs:
         working-directory: frontend
         run: npm ci && npm run build
 
-      - name: Copy frontend to static (unix)
-        if: runner.os != 'Windows'
+      - name: Copy frontend to static
         run: |
           rm -rf backend/static
           cp -r frontend/dist backend/static
-
-      - name: Copy frontend to static (windows)
-        if: runner.os == 'Windows'
-        run: |
-          if (Test-Path backend\static) { Remove-Item -Recurse -Force backend\static }
-          Copy-Item -Recurse frontend\dist backend\static
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -78,22 +68,13 @@ jobs:
         working-directory: backend
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Package (unix)
-        if: runner.os != 'Windows'
+      - name: Package
         run: |
           mkdir -p package
           cp backend/target/${{ matrix.target }}/release/openclaw-wizard package/openclaw-wizard
           cp -r backend/static package/static
           chmod +x package/openclaw-wizard
           tar czf ${{ matrix.artifact }}.tar.gz -C package .
-
-      - name: Package (windows)
-        if: runner.os == 'Windows'
-        run: |
-          New-Item -ItemType Directory -Force -Path package
-          copy backend\target\${{ matrix.target }}\release\openclaw-wizard.exe package\openclaw-wizard.exe
-          Copy-Item -Recurse backend\static package\static
-          Compress-Archive -Path package\* -DestinationPath ${{ matrix.artifact }}.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
